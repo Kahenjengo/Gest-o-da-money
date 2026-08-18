@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FinanceIQ – Login</title>
+    <meta name="description" content="Acesse sua conta FinanceIQ e controle suas finanças pessoais com inteligência." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/login.css" />
+</head>
+
+<body>
+    <div class="bg-animation">
+        <div class="floating-shape shape-1"></div>
+        <div class="floating-shape shape-2"></div>
+        <div class="floating-shape shape-3"></div>
+        <div class="floating-shape shape-4"></div>
+        <div class="floating-shape shape-5"></div>
+    </div>
+
+    <div class="login-container">
+        <div class="login-branding">
+            <div class="branding-content">
+                <div class="brand-logo">
+                    <div class="brand-logo-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <span class="brand-logo-text">FinanceIQ</span>
+                </div>
+                <h1 class="brand-title">Suas finanças sob <span class="gradient-text">controle total</span></h1>
+                <p class="brand-desc">Gerencie receitas, despesas, metas e orçamentos com inteligência. Tudo em um só lugar.</p>
+                <div class="brand-features">
+                    <div class="feature-item">
+                        <div class="feature-icon">📊</div>
+                        <div>
+                            <strong>Dashboard Inteligente</strong>
+                            <p>Visualize tudo em tempo real</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🎯</div>
+                        <div>
+                            <strong>Metas Financeiras</strong>
+                            <p>Planeje e alcance seus objetivos</p>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🔒</div>
+                        <div>
+                            <strong>Dados Seguros</strong>
+                            <p>Suas informações protegidas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-form-panel">
+            <div class="form-wrapper">
+                <div class="auth-card" id="loginCard">
+                    <div class="auth-header">
+                        <h2>Bem-vindo de volta!</h2>
+                        <p>Entre na sua conta para continuar</p>
+                    </div>
+
+                    <form id="loginForm" autocomplete="on">
+                        <div class="input-group">
+                            <label for="loginEmail">Email</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="email" id="loginEmail" placeholder="seu@email.com" required autocomplete="email" />
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="loginPassword">Senha</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="password" id="loginPassword" placeholder="Sua senha" required autocomplete="current-password" />
+                                <button type="button" class="toggle-password" data-target="loginPassword" aria-label="Mostrar senha">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="eye-open">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/>
+                                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="eye-closed" style="display:none">
+                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-options">
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="rememberMe" />
+                                <span class="checkmark"></span>
+                                Lembrar de mim
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn-auth" id="loginBtn">
+                            <span class="btn-text">Entrar</span>
+                            <div class="btn-loader" style="display:none">
+                                <div class="spinner"></div>
+                            </div>
+                        </button>
+
+                        <div class="auth-error" id="loginError" style="display:none">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <span id="loginErrorMsg"></span>
+                        </div>
+                    </form>
+
+                    <div class="auth-switch">
+                        Não tem conta? <button type="button" id="showRegister">Criar conta grátis</button>
+                    </div>
+                </div>
+
+                <div class="auth-card hidden" id="registerCard">
+                    <div class="auth-header">
+                        <h2>Crie sua conta</h2>
+                        <p>Comece a controlar suas finanças agora</p>
+                    </div>
+
+                    <form id="registerForm" autocomplete="on">
+                        <div class="input-group">
+                            <label for="registerName">Nome completo</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="text" id="registerName" placeholder="Seu nome completo" required autocomplete="name" />
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="registerEmail">Email</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="email" id="registerEmail" placeholder="seu@email.com" required autocomplete="email" />
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="registerPassword">Senha</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <input type="password" id="registerPassword" placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="new-password" />
+                                <button type="button" class="toggle-password" data-target="registerPassword" aria-label="Mostrar senha">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="eye-open">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/>
+                                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="eye-closed" style="display:none">
+                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="password-strength" id="passwordStrength">
+                                <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+                                <span class="strength-text" id="strengthText"></span>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="registerConfirm">Confirmar Senha</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <input type="password" id="registerConfirm" placeholder="Repita a senha" required minlength="6" autocomplete="new-password" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-auth" id="registerBtn">
+                            <span class="btn-text">Criar Conta</span>
+                            <div class="btn-loader" style="display:none">
+                                <div class="spinner"></div>
+                            </div>
+                        </button>
+
+                        <div class="auth-error" id="registerError" style="display:none">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <span id="registerErrorMsg"></span>
+                        </div>
+
+                        <div class="auth-success" id="registerSuccess" style="display:none">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span id="registerSuccessMsg"></span>
+                        </div>
+                    </form>
+
+                    <div class="auth-switch">
+                        Já tem conta? <button type="button" id="showLogin">Fazer login</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/login.js"></script>
+</body>
+</html>
