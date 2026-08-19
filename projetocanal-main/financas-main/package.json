@@ -2,6 +2,7 @@
   "name": "financeiq",
   "version": "1.0.0",
   "description": "Sistema inteligente de gestao de financas pessoais",
+  "author": "Gabriel Kahenjengo",
   "main": "electron.js",
   "engines": {
     "node": "22.x"
@@ -11,7 +12,8 @@
     "dev": "node server.js",
     "electron": "electron .",
     "rebuild": "electron-builder install-app-deps",
-    "build": "electron-builder"
+    "build": "node -e \"console.log('FinanceIQ web: sem passo de compilacao')\"",
+    "dist": "electron-builder"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
