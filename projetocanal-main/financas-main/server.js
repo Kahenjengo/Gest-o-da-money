@@ -33,24 +33,36 @@ const db = require('./database');
 const dbPathLabel = (typeof db.dbPath === 'string') ? db.dbPath : 'n/a';
 const Database = require('better-sqlite3');
 
+let adminBootstrapMsg = null;
 if (process.env.ADMIN_EMAIL) {
   try {
     const adminEmail = process.env.ADMIN_EMAIL.toLowerCase().trim();
+    const adminPassword = process.env.ADMIN_PASSWORD;
     const target = db.prepare('SELECT id, role FROM users WHERE email = ?').get(adminEmail);
     if (target) {
+      let done = [];
       if (target.role !== 'admin') {
         db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', target.id);
-        log('ADMIN_EMAIL: ' + adminEmail + ' promovido a admin');
+        done.push('promovido a admin');
       }
-    } else if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.length >= 6) {
-      const password_hash = bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10);
+      if (adminPassword && adminPassword.length >= 6) {
+        db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(bcrypt.hashSync(adminPassword, 10), target.id);
+        done.push('senha redefinida');
+      }
+      const msg = 'ADMIN_EMAIL: ' + adminEmail + ' - ' + (done.length ? done.join(' + ') : 'já admin');
+      log(msg);
+      adminBootstrapMsg = msg;
+    } else if (adminPassword && adminPassword.length >= 6) {
+      const password_hash = bcrypt.hashSync(adminPassword, 10);
       const name = (adminEmail.split('@')[0] || 'Admin').replace(/[^a-zA-Z0-9 ]/g, ' ').trim() || 'Admin';
       const base = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6) || 'user';
       const referral = base + Math.random().toString(36).slice(2, 6);
       const result = db.prepare('INSERT INTO users (name, email, password_hash, role, onboarded, referral_code) VALUES (?, ?, ?, ?, 0, ?)').run(
         name, adminEmail, password_hash, 'admin', referral
       );
-      log('ADMIN_EMAIL: conta admin criada em ' + dbPathLabel + ' (id=' + result.lastInsertRowid + ') - defina a senha no painel/primeiro login');
+      const msg = 'ADMIN_EMAIL: conta admin criada em ' + dbPathLabel + ' (id=' + result.lastInsertRowid + ')';
+      log(msg);
+      adminBootstrapMsg = msg;
     } else {
       log('ADMIN_EMAIL: ' + adminEmail + ' não existe na base (' + dbPathLabel + ') e ADMIN_PASSWORD não definido - registe a conta no site e reinicie');
     }
@@ -175,7 +187,7 @@ app.use('/api/referrals', referralsRoutes);
 app.use('/api/gamification', gamificationRoutes);
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, uptime: Math.round(process.uptime()), pid: process.pid, db: dbPathLabel });
+  res.json({ ok: true, uptime: Math.round(process.uptime()), pid: process.pid, db: dbPathLabel, admin: adminBootstrapMsg, node: process.version, env: process.env.NODE_ENV || 'dev' });
 });
 
 app.use((req, res) => {
