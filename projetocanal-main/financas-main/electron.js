@@ -1,6 +1,11 @@
-const electron = require('electron');
+let electron;
+try {
+  electron = require('electron');
+} catch (e) {
+  electron = null;
+}
 
-if (typeof electron !== 'object' || !electron.app) {
+if (typeof electron !== 'object' || !electron || !electron.app) {
   console.log('[financeiq] Executado fora do Electron (web mode). A iniciar servidor web...');
   require('./server');
   return;
