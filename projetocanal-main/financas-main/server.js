@@ -25,6 +25,7 @@ const express = require('express');
 const session = require('express-session');
 const BetterSQLite3SessionStore = require('./middleware/session-store');
 const helmet = require('helmet');
+const bcrypt = require('bcryptjs');
 
 log('A arrancar FinanceIQ | node=' + process.version + ' | platform=' + process.platform + ' | arch=' + process.arch + ' | abi=' + process.versions.modules + ' | cwd=' + process.cwd());
 
@@ -41,8 +42,17 @@ if (process.env.ADMIN_EMAIL) {
         db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', target.id);
         log('ADMIN_EMAIL: ' + adminEmail + ' promovido a admin');
       }
+    } else if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.length >= 6) {
+      const password_hash = bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10);
+      const name = (adminEmail.split('@')[0] || 'Admin').replace(/[^a-zA-Z0-9 ]/g, ' ').trim() || 'Admin';
+      const base = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6) || 'user';
+      const referral = base + Math.random().toString(36).slice(2, 6);
+      const result = db.prepare('INSERT INTO users (name, email, password_hash, role, onboarded, referral_code) VALUES (?, ?, ?, ?, 0, ?)').run(
+        name, adminEmail, password_hash, 'admin', referral
+      );
+      log('ADMIN_EMAIL: conta admin criada em ' + dbPathLabel + ' (id=' + result.lastInsertRowid + ') - defina a senha no painel/primeiro login');
     } else {
-      log('ADMIN_EMAIL: ' + adminEmail + ' não existe na base (' + dbPathLabel + ')');
+      log('ADMIN_EMAIL: ' + adminEmail + ' não existe na base (' + dbPathLabel + ') e ADMIN_PASSWORD não definido - registe a conta no site e reinicie');
     }
   } catch (e) {
     log('ADMIN_EMAIL bootstrap falhou: ' + ((e && e.message) || e));
@@ -53,7 +63,7 @@ function resolveSessionDbPath() {
   const explicit = process.env.SESSION_DB_PATH;
   const inProduction = process.env.NODE_ENV === 'production';
   const altDir = path.join(os.homedir(), '.financeiq');
-  fs.mkdirSync(altDir, { recursive: true });
+  try { fs.mkdirSync(altDir, { recursive: true }); } catch (e) {}
   const alt = path.join(altDir, 'sessions.db');
   const preferred = explicit || (inProduction ? alt : path.join(__dirname, 'sessions.db'));
   try {

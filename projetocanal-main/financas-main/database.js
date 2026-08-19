@@ -7,7 +7,7 @@ function resolveDbPath() {
   const explicit = process.env.DB_PATH;
   const inProduction = process.env.NODE_ENV === 'production';
   const altDir = path.join(os.homedir(), '.financeiq');
-  fs.mkdirSync(altDir, { recursive: true });
+  try { fs.mkdirSync(altDir, { recursive: true }); } catch (e) { console.warn('[financeiq] não foi possível criar ' + altDir + ': ' + e.message); }
   const alt = path.join(altDir, 'financeiq.db');
   const preferred = explicit || (inProduction ? alt : path.join(__dirname, 'financeiq.db'));
   try {
