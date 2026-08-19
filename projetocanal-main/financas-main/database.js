@@ -600,3 +600,4 @@ const seedRates = db.prepare('INSERT OR IGNORE INTO exchange_rates (base_currenc
 
 module.exports = db;
 module.exports.ensureColumn = ensureColumn;
+module.exports.dbPath = dbPath;

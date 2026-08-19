@@ -1,14 +1,35 @@
 require('dotenv').config();
+const path = require('path');
+const os = require('os');
+const fs = require('fs');
+const crypto = require('crypto');
+
+const logDir = path.join(os.homedir(), '.financeiq');
+try { fs.mkdirSync(logDir, { recursive: true }); } catch (e) {}
+const logFile = path.join(logDir, 'server.log');
+function log(msg) {
+  const line = '[' + new Date().toISOString() + '] ' + msg;
+  console.log(line);
+  try { fs.appendFileSync(logFile, line + '\n'); } catch (e) {}
+}
+process.on('uncaughtException', (err) => {
+  log('UNCAUGHT EXCEPTION: ' + ((err && err.stack) || err));
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  log('UNHANDLED REJECTION: ' + ((reason && reason.stack) || reason));
+  process.exit(1);
+});
+
 const express = require('express');
 const session = require('express-session');
 const BetterSQLite3SessionStore = require('./middleware/session-store');
 const helmet = require('helmet');
-const path = require('path');
-const crypto = require('crypto');
+
+log('A arrancar FinanceIQ | node=' + process.version + ' | platform=' + process.platform + ' | arch=' + process.arch + ' | abi=' + process.versions.modules + ' | cwd=' + process.cwd());
 
 const db = require('./database');
-const fs = require('fs');
-const os = require('os');
+const dbPathLabel = (typeof db.dbPath === 'string') ? db.dbPath : 'n/a';
 const Database = require('better-sqlite3');
 
 function resolveSessionDbPath() {
@@ -124,6 +145,10 @@ app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/referrals', referralsRoutes);
 app.use('/api/gamification', gamificationRoutes);
 
+app.get('/health', (req, res) => {
+  res.json({ ok: true, uptime: Math.round(process.uptime()), pid: process.pid, db: dbPathLabel });
+});
+
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Endpoint não encontrado.' });
   res.status(404).send('Página não encontrada.');
@@ -136,7 +161,7 @@ app.use((err, req, res, _next) => {
 
 if (process.env.ELECTRON_MODE !== '1') {
   app.listen(PORT, () => {
-    console.log(`FinanceIQ rodando em http://localhost:${PORT}`);
+    log(`FinanceIQ rodando em http://localhost:${PORT} (pid ${process.pid})`);
   });
 }
 
