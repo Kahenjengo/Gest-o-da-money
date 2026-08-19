@@ -187,7 +187,7 @@ app.use('/api/referrals', referralsRoutes);
 app.use('/api/gamification', gamificationRoutes);
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, uptime: Math.round(process.uptime()), pid: process.pid, db: dbPathLabel, admin: adminBootstrapMsg, node: process.version, env: process.env.NODE_ENV || 'dev' });
+  res.json({ ok: true, uptime: Math.round(process.uptime()), pid: process.pid, db: dbPathLabel, admin: adminBootstrapMsg, node: process.version, env: process.env.NODE_ENV || 'dev', lastError });
 });
 
 app.use((req, res) => {
@@ -195,8 +195,11 @@ app.use((req, res) => {
   res.status(404).send('Página não encontrada.');
 });
 
+let lastError = null;
 app.use((err, req, res, _next) => {
-  console.error(err.stack);
+  const msg = ((err && err.stack) || err || '').toString().split('\n').slice(0, 6).join(' | ');
+  lastError = { ts: new Date().toISOString(), url: req.originalUrl, msg: msg.slice(0, 900) };
+  log('HTTP 500 em ' + req.originalUrl + ': ' + msg);
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
