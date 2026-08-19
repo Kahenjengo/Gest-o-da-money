@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const db = require('../database');
 const staticData = require('../services/static-data');
 const plans = require('../services/plans');
@@ -94,6 +95,35 @@ router.post('/api/auth/logout', (req, res) => {
   const sid = req.sessionID || '';
   if (req.session.user) db.prepare('UPDATE user_sessions SET current = 0 WHERE user_id = ? AND sid = ?').run(req.session.user.id, sid);
   req.session.destroy(() => res.json({ ok: true }));
+});
+
+router.post('/api/auth/forgot', (req, res) => {
+  const email = (req.body && req.body.email || '').toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'Indique o seu email.' });
+  if (rateLimited('forgot:' + email)) {
+    return res.status(429).json({ error: 'Muitas tentativas. Aguarde alguns minutos.' });
+  }
+  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  if (!user) return res.json({ ok: true, message: 'Se o email existir, será gerado um link de recuperação.' });
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  db.prepare('UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?').run(token, expires, user.id);
+  const link = (req.protocol || 'http') + '://' + (req.get('host') || 'localhost') + '/reset?token=' + token;
+  res.json({ ok: true, message: 'Link de recuperação gerado.', link });
+});
+
+router.post('/api/auth/reset', (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token) return res.status(400).json({ error: 'Token em falta.' });
+  if (!password || password.length < 6) return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres.' });
+  const user = db.prepare('SELECT id, reset_expires FROM users WHERE reset_token = ?').get(token);
+  if (!user || !user.reset_expires || new Date(user.reset_expires).getTime() < Date.now()) {
+    return res.status(400).json({ error: 'Link inválido ou expirado. Peça um novo.' });
+  }
+  db.prepare('UPDATE users SET password_hash = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?')
+    .run(bcrypt.hashSync(password, 10), user.id);
+  db.prepare('DELETE FROM user_sessions WHERE user_id = ?').run(user.id);
+  res.json({ ok: true });
 });
 
 router.get('/api/auth/me', (req, res) => {

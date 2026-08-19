@@ -119,7 +119,9 @@ ensureColumn('users', 'last_active_date', 'TEXT DEFAULT NULL');
 ensureColumn('users', 'family_id', 'INTEGER DEFAULT NULL');
 ensureColumn('users', 'family_role', "TEXT DEFAULT 'owner'");
 ensureColumn('users', 'is_active', 'INTEGER DEFAULT 1');
-ensureColumn('users', 'last_seen', 'TEXT DEFAULT NULL');
+  ensureColumn('users', 'last_seen', 'TEXT DEFAULT NULL');
+  ensureColumn('users', 'reset_token', 'TEXT DEFAULT NULL');
+  ensureColumn('users', 'reset_expires', 'TEXT DEFAULT NULL');
 
 /* ============ Migration de transactions ============ */
 ensureColumn('transactions', 'account_id', 'INTEGER DEFAULT NULL');

@@ -13,30 +13,51 @@
 
     const loginCard = document.getElementById('loginCard');
     const registerCard = document.getElementById('registerCard');
+    const forgotCard = document.getElementById('forgotCard');
+    const resetCard = document.getElementById('resetCard');
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
     const showRegisterBtn = document.getElementById('showRegister');
     const showLoginBtn = document.getElementById('showLogin');
+    const showForgotBtn = document.getElementById('showForgot');
+
+    function showCard(card) {
+        [loginCard, registerCard, forgotCard, resetCard].forEach(function (c) {
+            if (c) c.classList.add('hidden');
+        });
+        if (card) {
+            card.classList.remove('hidden');
+            card.style.animation = 'none';
+            card.offsetHeight;
+            card.style.animation = 'fadeInUp 0.5s ease-out';
+        }
+    }
+
+    var resetToken = new URLSearchParams(window.location.search).get('token') || '';
+    if (resetToken) {
+        showCard(resetCard);
+        document.getElementById('resetToken').value = resetToken;
+    }
 
     var refCode = new URLSearchParams(window.location.search).get('ref') || '';
     var refHint = document.getElementById('registerRefHint');
     if (refCode && refHint) refHint.style.display = 'flex';
 
+    showForgotBtn.addEventListener('click', function () {
+        showCard(forgotCard);
+        clearErrors();
+    });
+
+    document.getElementById('showLogin2').addEventListener('click', function () { showCard(loginCard); clearErrors(); });
+    document.getElementById('showLogin3').addEventListener('click', function () { showCard(loginCard); clearErrors(); });
+
     showRegisterBtn.addEventListener('click', function () {
-        loginCard.classList.add('hidden');
-        registerCard.classList.remove('hidden');
-        registerCard.style.animation = 'none';
-        registerCard.offsetHeight;
-        registerCard.style.animation = 'fadeInUp 0.5s ease-out';
+        showCard(registerCard);
         clearErrors();
     });
 
     showLoginBtn.addEventListener('click', function () {
-        registerCard.classList.add('hidden');
-        loginCard.classList.remove('hidden');
-        loginCard.style.animation = 'none';
-        loginCard.offsetHeight;
-        loginCard.style.animation = 'fadeInUp 0.5s ease-out';
+        showCard(loginCard);
         clearErrors();
     });
 
@@ -107,7 +128,7 @@
     }
 
     function clearErrors() {
-        ['loginError', 'registerError', 'registerSuccess'].forEach(function (id) {
+        ['loginError', 'registerError', 'registerSuccess', 'forgotError', 'forgotSuccess', 'resetError', 'resetSuccess'].forEach(function (id) {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
@@ -200,6 +221,82 @@
         .catch(function () {
             showError('registerError', 'Erro de conexão. Tente novamente.');
             setLoading('registerBtn', false);
+        });
+    });
+
+    document.getElementById('forgotForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        hideError('forgotError');
+        hideError('forgotSuccess');
+        setLoading('forgotBtn', true);
+
+        var email = document.getElementById('forgotEmail').value.trim();
+
+        fetch('/api/auth/forgot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        })
+        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (result) {
+            setLoading('forgotBtn', false);
+            if (!result.ok) {
+                showError('forgotError', result.data.error || 'Erro ao gerar o link.');
+                return;
+            }
+            if (result.data.link) {
+                showSuccess('forgotSuccess', 'Link de recuperação (válido por 1 hora). Copie e abra: ' + result.data.link);
+            } else {
+                showSuccess('forgotSuccess', result.data.message || 'Se o email existir, será gerado um link.');
+            }
+        })
+        .catch(function () {
+            showError('forgotError', 'Erro de conexão. Tente novamente.');
+            setLoading('forgotBtn', false);
+        });
+    });
+
+    document.getElementById('resetForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        hideError('resetError');
+        hideError('resetSuccess');
+        setLoading('resetBtn', true);
+
+        var password = document.getElementById('resetPassword').value;
+        var confirmPw = document.getElementById('resetConfirm').value;
+        var token = document.getElementById('resetToken').value;
+
+        if (password.length < 6) {
+            showError('resetError', 'Senha deve ter pelo menos 6 caracteres.');
+            setLoading('resetBtn', false);
+            return;
+        }
+        if (password !== confirmPw) {
+            showError('resetError', 'As senhas não coincidem.');
+            setLoading('resetBtn', false);
+            return;
+        }
+
+        fetch('/api/auth/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: token, password: password })
+        })
+        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (result) {
+            setLoading('resetBtn', false);
+            if (!result.ok) {
+                showError('resetError', result.data.error || 'Erro ao redefinir a senha.');
+                return;
+            }
+            showSuccess('resetSuccess', 'Senha redefinida com sucesso! Redirecionando para o login...');
+            setTimeout(function () {
+                window.location.href = '/login';
+            }, 1500);
+        })
+        .catch(function () {
+            showError('resetError', 'Erro de conexão. Tente novamente.');
+            setLoading('resetBtn', false);
         });
     });
 
