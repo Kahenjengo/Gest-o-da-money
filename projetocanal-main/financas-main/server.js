@@ -7,6 +7,24 @@ const path = require('path');
 const crypto = require('crypto');
 
 const db = require('./database');
+const fs = require('fs');
+const os = require('os');
+const Database = require('better-sqlite3');
+
+function resolveSessionDbPath() {
+  const preferred = process.env.SESSION_DB_PATH || path.join(__dirname, 'sessions.db');
+  const altDir = path.join(os.homedir(), '.financeiq');
+  fs.mkdirSync(altDir, { recursive: true });
+  const alt = path.join(altDir, 'sessions.db');
+  try {
+    const probe = new Database(preferred);
+    probe.close();
+    return preferred;
+  } catch (e) {
+    console.warn('[financeiq] não foi possível abrir ' + preferred + ' (' + e.message + '); sessões em ' + alt);
+    return alt;
+  }
+}
 const authRoutes = require('./routes/auth');
 const pagesRoutes = require('./routes/pages');
 const transactionsRoutes = require('./routes/transactions');
@@ -61,7 +79,7 @@ app.use(express.urlencoded({ extended: false, limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  store: new BetterSQLite3SessionStore({ db: process.env.SESSION_DB_PATH || path.join(__dirname, 'sessions.db') }),
+  store: new BetterSQLite3SessionStore({ db: resolveSessionDbPath() }),
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,

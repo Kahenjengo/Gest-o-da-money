@@ -1,8 +1,27 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'financeiq.db');
+function resolveDbPath() {
+  const preferred = process.env.DB_PATH || path.join(__dirname, 'financeiq.db');
+  const altDir = path.join(os.homedir(), '.financeiq');
+  fs.mkdirSync(altDir, { recursive: true });
+  const alt = path.join(altDir, 'financeiq.db');
+  try {
+    const probe = new Database(preferred);
+    probe.close();
+    return preferred;
+  } catch (e) {
+    console.warn('[financeiq] não foi possível abrir ' + preferred + ' (' + e.message + '); a usar ' + alt);
+    return alt;
+  }
+}
+
+const dbPath = resolveDbPath();
 const db = new Database(dbPath);
+
+console.log('[financeiq] SQLite em ' + dbPath);
 
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
