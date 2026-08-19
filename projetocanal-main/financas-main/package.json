@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^12.9.0",
+    "better-sqlite3": "^13.0.3",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.21.0",
@@ -46,5 +46,9 @@
       "createStartMenuShortcut": true,
       "shortcutName": "FinanceIQ"
     }
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": true,
+    "electron@34.5.8": true
   }
 }
