@@ -302,6 +302,19 @@ body {
     font-size: 0.92rem;
 }
 
+.auth-ref {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(108, 99, 255, 0.12);
+    border: 1px solid rgba(108, 99, 255, 0.35);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+}
+
 /* ── Input Groups ── */
 .input-group {
     margin-bottom: 22px;

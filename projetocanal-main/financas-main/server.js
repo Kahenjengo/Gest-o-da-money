@@ -4,6 +4,7 @@ const session = require('express-session');
 const BetterSQLite3SessionStore = require('./middleware/session-store');
 const helmet = require('helmet');
 const path = require('path');
+const crypto = require('crypto');
 
 const db = require('./database');
 const authRoutes = require('./routes/auth');
@@ -13,6 +14,26 @@ const budgetsRoutes = require('./routes/budgets');
 const goalsRoutes = require('./routes/goals');
 const membersRoutes = require('./routes/members');
 const profileRoutes = require('./routes/profile');
+const accountsRoutes = require('./routes/accounts');
+const categoriesRoutes = require('./routes/categories');
+const transfersRoutes = require('./routes/transfers');
+const recurringRoutes = require('./routes/recurring');
+const debtsRoutes = require('./routes/debts');
+const loansRoutes = require('./routes/loans');
+const notificationsRoutes = require('./routes/notifications');
+const reportsRoutes = require('./routes/reports');
+const exportsRoutes = require('./routes/exports');
+const intelligenceRoutes = require('./routes/intelligence');
+const aiRoutes = require('./routes/ai');
+const importRoutes = require('./routes/import');
+const ocrRoutes = require('./routes/ocr');
+const familyRoutes = require('./routes/family');
+const plansRoutes = require('./routes/plans');
+const adminRoutes = require('./routes/admin');
+const settingsRoutes = require('./routes/settings');
+const onboardingRoutes = require('./routes/onboarding');
+const referralsRoutes = require('./routes/referrals');
+const gamificationRoutes = require('./routes/gamification');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,19 +56,20 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: false, limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
   store: new BetterSQLite3SessionStore({ db: process.env.SESSION_DB_PATH || path.join(__dirname, 'sessions.db') }),
-  secret: process.env.SESSION_SECRET || 'default-secret-change-me',
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: 'auto',
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 30,
   },
 }));
 
@@ -63,6 +85,31 @@ app.use('/api/budgets', budgetsRoutes);
 app.use('/api/goals', goalsRoutes);
 app.use('/api/members', membersRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/accounts', accountsRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/transfers', transfersRoutes);
+app.use('/api/recurring', recurringRoutes);
+app.use('/api/debts', debtsRoutes);
+app.use('/api/loans', loansRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/export', exportsRoutes);
+app.use('/api/intelligence', intelligenceRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/import', importRoutes);
+app.use('/api/ocr', ocrRoutes);
+app.use('/api/family', familyRoutes);
+app.use('/api/plans', plansRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/referrals', referralsRoutes);
+app.use('/api/gamification', gamificationRoutes);
+
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Endpoint não encontrado.' });
+  res.status(404).send('Página não encontrada.');
+});
 
 app.use((err, req, res, _next) => {
   console.error(err.stack);

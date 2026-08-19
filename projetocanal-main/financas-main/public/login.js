@@ -18,6 +18,10 @@
     const showRegisterBtn = document.getElementById('showRegister');
     const showLoginBtn = document.getElementById('showLogin');
 
+    var refCode = new URLSearchParams(window.location.search).get('ref') || '';
+    var refHint = document.getElementById('registerRefHint');
+    if (refCode && refHint) refHint.style.display = 'flex';
+
     showRegisterBtn.addEventListener('click', function () {
         loginCard.classList.add('hidden');
         registerCard.classList.remove('hidden');
@@ -178,7 +182,7 @@
         fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: name, email: email, password: password })
+            body: JSON.stringify({ name: name, email: email, password: password, referralCode: refCode || undefined })
         })
         .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
         .then(function (result) {

@@ -1,3 +1,5 @@
+const db = require('../database');
+
 function isAuthenticated(req, res, next) {
   if (req.session && req.session.user) {
     return next();
@@ -12,4 +14,12 @@ function isAuthenticatedPage(req, res, next) {
   res.redirect('/login');
 }
 
-module.exports = { isAuthenticated, isAuthenticatedPage };
+function isAdmin(req, res, next) {
+  if (req.session && req.session.user) {
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(req.session.user.id);
+    if (user && user.role === 'admin') return next();
+  }
+  res.status(403).json({ error: 'Acesso restrito a administradores.' });
+}
+
+module.exports = { isAuthenticated, isAuthenticatedPage, isAdmin };

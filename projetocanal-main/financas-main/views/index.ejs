@@ -1,562 +1,195 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt">
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FinanceIQ – Suas Finanças em Controle</title>
-    <meta name="description" content="Sistema inteligente de gestão de finanças pessoais. Controle receitas, despesas, metas e orçamentos com estilo." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>FinanceIQ</title>
+    <meta name="description" content="Plataforma inteligente de gestão financeira pessoal e familiar." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
-<body>
+<body class="app-body">
+    <a class="skip-link" href="#main">Saltar para o conteúdo</a>
 
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="logo">
-                <div class="logo-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <!-- ============ SIDEBAR (desktop) ============ -->
+    <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+        <div class="sidebar-brand">
+            <div class="brand-logo">
+                <div class="brand-logo-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                 </div>
-                <span class="logo-text">FinanceIQ</span>
+                <span class="brand-logo-text">Finance<span class="gradient-text">IQ</span></span>
             </div>
-            <button class="sidebar-close" id="sidebarClose">✕</button>
+            <div class="plan-chip" id="planChipSide" role="status"></div>
         </div>
 
-        <nav class="sidebar-nav">
-            <button class="nav-item active" data-page="dashboard" id="nav-dashboard">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
-                    <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
-                    <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
-                    <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
-                </svg>
-                <span>Dashboard</span>
+        <nav class="sidebar-nav" id="navMain" role="navigation">
+            <button class="nav-item" data-view="dashboard" aria-current="true">
+                <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
             </button>
-            <button class="nav-item" data-page="transactions" id="nav-transactions">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M7 16l-4-4m0 0l4-4m-4 4h18M17 8l4 4m0 0l-4 4m4-4H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span>Transações</span>
+            <button class="nav-item" data-view="movements">
+                <span class="nav-icon">💸</span><span class="nav-label">Movimentos</span>
             </button>
-            <button class="nav-item" data-page="budget" id="nav-budget">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span>Orçamento</span>
+            <button class="nav-item" data-view="budget">
+                <span class="nav-icon">📋</span><span class="nav-label">Orçamento</span>
             </button>
-            <button class="nav-item" data-page="goals" id="nav-goals">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
-                    <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2" />
-                    <circle cx="12" cy="12" r="2" fill="currentColor" />
-                </svg>
-                <span>Metas</span>
+            <button class="nav-item" data-view="goals">
+                <span class="nav-icon">🎯</span><span class="nav-label">Metas</span>
             </button>
-            <button class="nav-item" data-page="reports" id="nav-reports">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span>Relatórios</span>
+            <button class="nav-item" data-view="accounts">
+                <span class="nav-icon">🏦</span><span class="nav-label">Contas</span>
             </button>
-            <button class="nav-item" data-page="settings" id="nav-settings">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span>Configurações</span>
+            <button class="nav-item" data-view="debts">
+                <span class="nav-icon">🛡️</span><span class="nav-label">Dívidas</span>
+                <span class="badge-pro" data-pro>PRO</span>
+            </button>
+            <button class="nav-item" data-view="reports">
+                <span class="nav-icon">📈</span><span class="nav-label">Relatórios</span>
+            </button>
+            <button class="nav-item" data-view="calendar">
+                <span class="nav-icon">📅</span><span class="nav-label">Calendário</span>
+            </button>
+            <button class="nav-item" data-view="assistant">
+                <span class="nav-icon">🤖</span><span class="nav-label">Assistente</span>
+                <span class="badge-pro" data-pro>PRO</span>
+            </button>
+            <button class="nav-item" data-view="family">
+                <span class="nav-icon">👨‍👩‍👧</span><span class="nav-label">Família</span>
+                <span class="badge-pro" data-pro>PRO</span>
+            </button>
+            <button class="nav-item" data-view="challenges">
+                <span class="nav-icon">🏆</span><span class="nav-label">Desafios</span>
+                <span class="badge-pro" data-pro>PRO</span>
+            </button>
+            <button class="nav-item" data-view="referrals">
+                <span class="nav-icon">🤝</span><span class="nav-label">Indicações</span>
+            </button>
+            <button class="nav-item" data-view="plans">
+                <span class="nav-icon">💎</span><span class="nav-label">Planos</span>
+            </button>
+            <button class="nav-item nav-admin hidden" data-view="admin">
+                <span class="nav-icon">🛠️</span><span class="nav-label">Administração</span>
+            </button>
+            <button class="nav-item" data-view="settings">
+                <span class="nav-icon">⚙️</span><span class="nav-label">Definições</span>
             </button>
         </nav>
 
         <div class="sidebar-footer">
-            <div class="user-card">
-                <div class="user-avatar" id="userAvatarSidebar">U</div>
-                <div class="user-info">
-                    <span class="user-name" id="userNameSidebar"><%= typeof user !== 'undefined' && user ? user.name : 'Usuário' %></span>
-                    <span class="user-sub">Plano Básico</span>
+            <div class="streak-chip" id="streakChip" title="Racha de registos diários">🔥 <span id="streakVal">0</span></div>
+            <button class="user-block" id="userMenuBtn" aria-haspopup="true">
+                <div class="avatar" id="userAvatar">U</div>
+                <div class="user-meta">
+                    <span class="user-name" id="userName">Utilizador</span>
+                    <span class="user-email" id="userEmail">—</span>
                 </div>
-            </div>
-            <button class="logout-btn" onclick="logout()" title="Sair da conta">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    <polyline points="16,17 21,12 16,7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span>Sair</span>
+                <span class="chevron">▾</span>
             </button>
+            <div class="user-menu hidden" id="userMenu">
+                <button data-action="open-settings"><span>⚙️</span> Definições</button>
+                <button data-action="open-plans"><span>💎</span> Planos</button>
+                <button data-action="logout"><span>🚪</span> Sair</button>
+            </div>
         </div>
     </aside>
+    <div class="sidebar-overlay hidden" id="sidebarOverlay"></div>
 
-    <div class="main-wrapper">
+    <!-- ============ MAIN ============ -->
+    <main class="main" id="main">
         <header class="topbar">
-            <div class="topbar-left">
-                <button class="menu-toggle" id="menuToggle">
-                    <span></span><span></span><span></span>
-                </button>
-                <div class="page-title-area">
-                    <h1 class="page-title" id="pageTitle">Dashboard</h1>
-                    <span class="page-date" id="pageDate"></span>
-                </div>
+            <button class="icon-btn hamburger" id="hamburger" aria-label="Abrir menu">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+            <div class="topbar-title">
+                <h1 id="pageTitle">Dashboard</h1>
+                <span class="topbar-sub" id="pageSubtitle">Visão geral</span>
             </div>
-            <div class="topbar-right">
+            <div class="topbar-actions">
                 <div class="month-selector">
-                    <button class="month-btn" id="prevMonth">‹</button>
-                    <span class="month-label" id="monthLabel"></span>
-                    <button class="month-btn" id="nextMonth">›</button>
+                    <button class="icon-btn" id="monthPrev" aria-label="Mês anterior">‹</button>
+                    <input type="month" id="monthInput" aria-label="Mês de referência" />
+                    <button class="icon-btn" id="monthNext" aria-label="Mês seguinte">›</button>
                 </div>
-                <button class="btn-primary" id="addTransactionBtn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-                    </svg>
-                    Nova Transação
+                <button class="icon-btn" id="notifBtn" aria-label="Notificações" aria-haspopup="true">
+                    🔔<span class="notif-dot hidden" id="notifDot"></span>
                 </button>
-                <div class="topbar-avatar" id="topbarAvatar">U</div>
+                <div class="notif-panel hidden" id="notifPanel">
+                    <div class="notif-head">
+                        <strong>Notificações</strong>
+                        <button class="text-btn" id="notifReadAll">Marcar todas</button>
+                    </div>
+                    <div class="notif-list" id="notifList"></div>
+                </div>
+                <div class="topbar-search">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <input type="search" id="globalSearch" placeholder="Pesquisar movimentos..." aria-label="Pesquisar" />
+                </div>
             </div>
         </header>
 
-        <main class="content">
-
-            <div class="page active" id="page-dashboard">
-
-                <div class="cards-grid">
-                    <div class="card card-balance">
-                        <div class="card-header">
-                            <span class="card-label">Saldo Total</span>
-                            <div class="card-icon balance-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-4H9l3-3 3 3h-2v4z" fill="currentColor" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="card-value" id="totalBalance">R$ 0,00</div>
-                        <div class="card-trend" id="balanceTrend">
-                            <span class="trend-icon">↑</span>
-                            <span>Este mês</span>
-                        </div>
-                    </div>
-
-                    <div class="card card-income">
-                        <div class="card-header">
-                            <span class="card-label">Receitas</span>
-                            <div class="card-icon income-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                    <path d="M7 17l9.2-9.2M17 17V7H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="card-value income-value" id="totalIncome">R$ 0,00</div>
-                        <div class="card-trend positive-trend">
-                            <span class="trend-icon">↑</span>
-                            <span id="incomeCount">0 entradas</span>
-                        </div>
-                    </div>
-
-                    <div class="card card-expense">
-                        <div class="card-header">
-                            <span class="card-label">Despesas</span>
-                            <div class="card-icon expense-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                    <path d="M17 7l-9.2 9.2M7 7v10h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="card-value expense-value" id="totalExpense">R$ 0,00</div>
-                        <div class="card-trend negative-trend">
-                            <span class="trend-icon">↓</span>
-                            <span id="expenseCount">0 saídas</span>
-                        </div>
-                    </div>
-
-                    <div class="card card-savings">
-                        <div class="card-header">
-                            <span class="card-label">Taxa de Poupança</span>
-                            <div class="card-icon savings-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="card-value savings-value" id="savingsRate">0%</div>
-                        <div class="savings-bar">
-                            <div class="savings-fill" id="savingsFill"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="dashboard-grid">
-                    <div class="chart-card">
-                        <div class="chart-card-header">
-                            <h3>Fluxo de Caixa</h3>
-                            <div class="chart-legend">
-                                <span class="legend-dot income-dot"></span><span>Receitas</span>
-                                <span class="legend-dot expense-dot"></span><span>Despesas</span>
-                            </div>
-                        </div>
-                        <div class="chart-wrapper">
-                            <canvas id="cashflowChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="chart-card">
-                        <div class="chart-card-header">
-                            <h3>Despesas por Categoria</h3>
-                        </div>
-                        <div class="chart-wrapper donut-wrapper">
-                            <canvas id="categoryChart"></canvas>
-                            <div class="donut-center" id="donutCenter">
-                                <span class="donut-label">Total</span>
-                                <span class="donut-value" id="donutTotal">R$ 0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section-card">
-                    <div class="section-header">
-                        <h3>Transações Recentes</h3>
-                        <button class="btn-link" onclick="showPage('transactions')">Ver todas →</button>
-                    </div>
-                    <div class="transactions-list" id="recentTransactions">
-                        <div class="empty-state">
-                            <div class="empty-icon">💸</div>
-                            <p>Nenhuma transação ainda.</p>
-                            <button class="btn-primary small" onclick="document.getElementById('addTransactionBtn').click()">Adicionar primeira transação</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page" id="page-transactions">
-                <div class="transactions-toolbar">
-                    <div class="search-box">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" />
-                            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                        </svg>
-                        <input type="text" id="searchInput" placeholder="Pesquisar transações..." />
-                    </div>
-                    <div class="filter-group">
-                        <select id="filterType" class="filter-select">
-                            <option value="">Todos os tipos</option>
-                            <option value="income">Receitas</option>
-                            <option value="expense">Despesas</option>
-                        </select>
-                        <select id="filterCategory" class="filter-select">
-                            <option value="">Todas as categorias</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="section-card">
-                    <div class="transactions-full-list" id="allTransactions">
-                        <div class="empty-state">
-                            <div class="empty-icon">📋</div>
-                            <p>Nenhuma transação encontrada.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page" id="page-budget">
-                <div class="budget-header-action">
-                    <p class="page-desc">Defina limites de gastos por categoria para o mês atual.</p>
-                    <button class="btn-primary" id="addBudgetBtn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-                        </svg>
-                        Novo Orçamento
-                    </button>
-                </div>
-                <div class="budget-list" id="budgetList">
-                    <div class="empty-state">
-                        <div class="empty-icon">🎯</div>
-                        <p>Nenhum orçamento definido ainda.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page" id="page-goals">
-                <div class="budget-header-action">
-                    <p class="page-desc">Defina metas financeiras e acompanhe seu progresso.</p>
-                    <button class="btn-primary" id="addGoalBtn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-                        </svg>
-                        Nova Meta
-                    </button>
-                </div>
-                <div class="goals-grid" id="goalsList">
-                    <div class="empty-state">
-                        <div class="empty-icon">🏆</div>
-                        <p>Nenhuma meta criada ainda.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page" id="page-reports">
-                <div class="reports-grid">
-                    <div class="chart-card full-width">
-                        <div class="chart-card-header">
-                            <h3>Evolução Anual</h3>
-                        </div>
-                        <div class="chart-wrapper tall-chart">
-                            <canvas id="annualChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="report-stats">
-                        <div class="stat-card">
-                            <span class="stat-label">Maior Receita</span>
-                            <span class="stat-value income-value" id="biggestIncome">R$ 0,00</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-label">Maior Despesa</span>
-                            <span class="stat-value expense-value" id="biggestExpense">R$ 0,00</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-label">Média Mensal de Gastos</span>
-                            <span class="stat-value" id="avgExpense">R$ 0,00</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-label">Total Economizado (ano)</span>
-                            <span class="stat-value income-value" id="totalSaved">R$ 0,00</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page" id="page-settings">
-                <div class="settings-grid">
-
-                    <div class="section-card settings-card">
-                        <div class="section-header">
-                            <h3>Meu Perfil</h3>
-                        </div>
-                        <form id="profileForm" class="settings-form">
-                            <div class="avatar-upload">
-                                <div class="avatar-preview" id="avatarPreviewContainer">
-                                    <span id="avatarPreviewText">U</span>
-                                </div>
-                                <div class="avatar-actions">
-                                    <label class="btn-secondary" for="avatarInput">Alterar Foto</label>
-                                    <input type="file" id="avatarInput" accept="image/*" style="display: none;" />
-                                    <button type="button" class="btn-link" id="removeAvatarBtn">Remover foto</button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="profileName">Nome de Exibição</label>
-                                <input type="text" id="profileName" placeholder="Seu nome" required />
-                            </div>
-                            <div class="form-group">
-                                <label for="profileEmail">Email</label>
-                                <input type="email" id="profileEmail" placeholder="seu@email.com" />
-                            </div>
-                            <button type="submit" class="btn-primary" style="margin-top:10px;">Salvar Perfil</button>
-                        </form>
-                    </div>
-
-                    <div class="section-card settings-card">
-                        <div class="section-header">
-                            <h3>Membros da Família</h3>
-                            <button class="btn-secondary small" id="addMemberBtn">
-                                + Adicionar Membro
-                            </button>
-                        </div>
-                        <p class="page-desc" style="margin-bottom:16px;">Vincule suas transações a outras pessoas (esposa, filhos, etc).</p>
-
-                        <div class="members-list" id="membersList">
-                            <div class="empty-state">
-                                <div class="empty-icon">👨‍👩‍👦</div>
-                                <p>Nenhum membro da família adicionado.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-        </main>
-    </div>
-
-    <div class="modal-overlay" id="transactionModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 id="modalTitle">Nova Transação</h2>
-                <button class="modal-close" id="closeTransactionModal">✕</button>
-            </div>
-            <div class="type-toggle">
-                <button class="type-btn active" id="typeIncome" data-type="income">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M7 17l9.2-9.2M17 17V7H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                    Receita
-                </button>
-                <button class="type-btn" id="typeExpense" data-type="expense">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M17 7l-9.2 9.2M7 7v10h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                    Despesa
-                </button>
-            </div>
-            <form id="transactionForm">
-                <input type="hidden" id="editId" value="" />
-                <div class="form-group">
-                    <label for="txDescription">Descrição</label>
-                    <input type="text" id="txDescription" placeholder="Ex: Salário, Aluguel, Mercado..." required />
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="txAmount">Valor (R$)</label>
-                        <input type="number" id="txAmount" placeholder="0,00" step="0.01" min="0.01" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="txDate">Data</label>
-                        <input type="date" id="txDate" required />
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="txCategory">Categoria</label>
-                    <select id="txCategory" required>
-                        <option value="">Selecione...</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="txNote">Observação (opcional)</label>
-                    <input type="text" id="txNote" placeholder="Adicionar nota..." />
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" id="cancelTransaction">Cancelar</button>
-                    <button type="submit" class="btn-primary" id="saveTransaction">Salvar Transação</button>
-                </div>
-            </form>
+        <!-- ============ VIEWS ============ -->
+        <div class="views" id="views">
+            <section class="view active" id="view-dashboard" aria-labelledby="pageTitle"></section>
+            <section class="view" id="view-movements"></section>
+            <section class="view" id="view-budget"></section>
+            <section class="view" id="view-goals"></section>
+            <section class="view" id="view-accounts"></section>
+            <section class="view" id="view-debts"></section>
+            <section class="view" id="view-reports"></section>
+            <section class="view" id="view-calendar"></section>
+            <section class="view" id="view-assistant"></section>
+            <section class="view" id="view-family"></section>
+            <section class="view" id="view-challenges"></section>
+            <section class="view" id="view-referrals"></section>
+            <section class="view" id="view-plans"></section>
+            <section class="view" id="view-admin"></section>
+            <section class="view" id="view-settings"></section>
         </div>
-    </div>
+    </main>
 
-    <div class="modal-overlay" id="budgetModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Novo Orçamento</h2>
-                <button class="modal-close" id="closeBudgetModal">✕</button>
-            </div>
-            <form id="budgetForm">
-                <input type="hidden" id="editBudgetId" value="" />
-                <div class="form-group">
-                    <label for="budgetCategory">Categoria</label>
-                    <select id="budgetCategory" required>
-                        <option value="">Selecione...</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="budgetLimit">Limite Mensal (R$)</label>
-                    <input type="number" id="budgetLimit" placeholder="0,00" step="0.01" min="0.01" required />
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" id="cancelBudget">Cancelar</button>
-                    <button type="submit" class="btn-primary">Salvar Orçamento</button>
-                </div>
-            </form>
+    <!-- ============ MOBILE BOTTOM NAV ============ -->
+    <nav class="bottom-nav" aria-label="Navegação móvel">
+        <button class="bn-item" data-view="dashboard"><span class="bn-icon">📊</span><span class="bn-label">Início</span></button>
+        <button class="bn-item" data-view="movements"><span class="bn-icon">💸</span><span class="bn-label">Mov.</span></button>
+        <button class="bn-item bn-fab" id="fabMain" aria-label="Adicionar rápido"><span class="bn-icon">＋</span></button>
+        <button class="bn-item" data-view="budget"><span class="bn-icon">📋</span><span class="bn-label">Orç.</span></button>
+        <button class="bn-item" data-view="goals"><span class="bn-icon">🎯</span><span class="bn-label">Metas</span></button>
+    </nav>
+
+    <!-- ============ FAB (desktop) ============ -->
+    <div class="fab-wrap">
+        <div class="fab-menu hidden" id="fabMenu">
+            <button data-fab="expense"><span>🔴</span> Despesa</button>
+            <button data-fab="income"><span>🟢</span> Receita</button>
+            <button data-fab="transfer"><span>🔁</span> Transferência</button>
+            <button data-fab="ocr"><span>📷</span> Recibo</button>
+            <button data-fab="import"><span>📥</span> Importar</button>
         </div>
+        <button class="fab" id="fab" aria-label="Ações rápidas" aria-expanded="false">＋</button>
     </div>
 
-    <div class="modal-overlay" id="goalModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 id="goalModalTitle">Nova Meta</h2>
-                <button class="modal-close" id="closeGoalModal">✕</button>
-            </div>
-            <form id="goalForm">
-                <input type="hidden" id="editGoalId" value="" />
-                <div class="form-group">
-                    <label for="goalName">Nome da Meta</label>
-                    <input type="text" id="goalName" placeholder="Ex: Viagem para Europa, iPhone..." required />
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="goalTarget">Valor Alvo (R$)</label>
-                        <input type="number" id="goalTarget" placeholder="0,00" step="0.01" min="0.01" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="goalCurrent">Valor Atual (R$)</label>
-                        <input type="number" id="goalCurrent" placeholder="0,00" step="0.01" min="0" />
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="goalDeadline">Prazo</label>
-                        <input type="date" id="goalDeadline" />
-                    </div>
-                    <div class="form-group">
-                        <label for="goalIcon">Ícone</label>
-                        <select id="goalIcon">
-                            <option value="🏠">🏠 Casa</option>
-                            <option value="✈️">✈️ Viagem</option>
-                            <option value="🚗">🚗 Carro</option>
-                            <option value="📱">📱 Tecnologia</option>
-                            <option value="🎓">🎓 Educação</option>
-                            <option value="💊">💊 Saúde</option>
-                            <option value="🏆">🏆 Conquista</option>
-                            <option value="💰">💰 Reserva</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" id="cancelGoal">Cancelar</button>
-                    <button type="submit" class="btn-primary">Salvar Meta</button>
-                </div>
-            </form>
-        </div>
+    <!-- ============ MODAIS ============ -->
+    <div class="modal-overlay hidden" id="modalOverlay" aria-hidden="true">
+        <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
     </div>
 
-    <div class="modal-overlay" id="memberModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 id="memberModalTitle">Membro da Família</h2>
-                <button class="modal-close" id="closeMemberModal">✕</button>
-            </div>
-            <form id="memberForm">
-                <input type="hidden" id="editMemberId" value="" />
-                <div class="form-group">
-                    <label for="memberName">Nome</label>
-                    <input type="text" id="memberName" placeholder="Ex: Maria" required />
-                </div>
-                <div class="form-group">
-                    <label for="memberRelation">Relação</label>
-                    <select id="memberRelation" required>
-                        <option value="Esposa">Esposa</option>
-                        <option value="Marido">Marido</option>
-                        <option value="Filho(a)">Filho(a)</option>
-                        <option value="Parceiro(a)">Parceiro(a)</option>
-                        <option value="Outro">Outro</option>
-                    </select>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" id="cancelMember">Cancelar</button>
-                    <button type="submit" class="btn-primary">Salvar Membro</button>
-                </div>
-            </form>
-        </div>
+    <div class="modal-overlay hidden" id="paywallOverlay" aria-hidden="true">
+        <div class="modal paywall-modal" role="dialog" aria-modal="true" aria-labelledby="paywallTitle"></div>
     </div>
 
-    <div class="toast" id="toast"></div>
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <div class="modal-overlay" id="confirmModal">
-        <div class="modal confirm-modal">
-            <div class="confirm-icon" id="confirmIcon">🗑️</div>
-            <h2 class="confirm-title" id="confirmTitle">Confirmar exclusão</h2>
-            <p class="confirm-msg" id="confirmMsg">Tem certeza que deseja excluir este item?</p>
-            <div class="form-actions" style="padding:0;">
-                <button class="btn-secondary" id="confirmCancel">Cancelar</button>
-                <button class="btn-danger" id="confirmOk">Excluir</button>
-            </div>
-        </div>
+    <div class="modal-overlay hidden" id="onboardOverlay" aria-hidden="true">
+        <div class="modal onboard-modal" role="dialog" aria-modal="true" aria-labelledby="onboardTitle"></div>
     </div>
 
+    <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+    <script src="/i18n.js"></script>
     <script src="/app.js"></script>
 </body>
-
 </html>
