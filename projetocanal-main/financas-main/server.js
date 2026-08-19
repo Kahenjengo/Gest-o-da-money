@@ -32,11 +32,30 @@ const db = require('./database');
 const dbPathLabel = (typeof db.dbPath === 'string') ? db.dbPath : 'n/a';
 const Database = require('better-sqlite3');
 
+if (process.env.ADMIN_EMAIL) {
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL.toLowerCase().trim();
+    const target = db.prepare('SELECT id, role FROM users WHERE email = ?').get(adminEmail);
+    if (target) {
+      if (target.role !== 'admin') {
+        db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', target.id);
+        log('ADMIN_EMAIL: ' + adminEmail + ' promovido a admin');
+      }
+    } else {
+      log('ADMIN_EMAIL: ' + adminEmail + ' não existe na base (' + dbPathLabel + ')');
+    }
+  } catch (e) {
+    log('ADMIN_EMAIL bootstrap falhou: ' + ((e && e.message) || e));
+  }
+}
+
 function resolveSessionDbPath() {
-  const preferred = process.env.SESSION_DB_PATH || path.join(__dirname, 'sessions.db');
+  const explicit = process.env.SESSION_DB_PATH;
+  const inProduction = process.env.NODE_ENV === 'production';
   const altDir = path.join(os.homedir(), '.financeiq');
   fs.mkdirSync(altDir, { recursive: true });
   const alt = path.join(altDir, 'sessions.db');
+  const preferred = explicit || (inProduction ? alt : path.join(__dirname, 'sessions.db'));
   try {
     const probe = new Database(preferred);
     probe.close();

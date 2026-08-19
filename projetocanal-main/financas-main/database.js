@@ -4,10 +4,12 @@ const fs = require('fs');
 const os = require('os');
 
 function resolveDbPath() {
-  const preferred = process.env.DB_PATH || path.join(__dirname, 'financeiq.db');
+  const explicit = process.env.DB_PATH;
+  const inProduction = process.env.NODE_ENV === 'production';
   const altDir = path.join(os.homedir(), '.financeiq');
   fs.mkdirSync(altDir, { recursive: true });
   const alt = path.join(altDir, 'financeiq.db');
+  const preferred = explicit || (inProduction ? alt : path.join(__dirname, 'financeiq.db'));
   try {
     const probe = new Database(preferred);
     probe.close();
