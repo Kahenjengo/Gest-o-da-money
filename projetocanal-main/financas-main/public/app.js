@@ -1241,6 +1241,7 @@
         <div class="mov-tabs" id="adminTabs">
           <button class="tab-btn active" data-tab="overview">📊 ${esc(t('admin_overview'))}</button>
           <button class="tab-btn" data-tab="users">👥 ${esc(t('admin_users'))}</button>
+          <button class="tab-btn" data-tab="plans">📋 ${esc(t('admin_plans'))}</button>
         </div>
         <div class="card" id="adminCard">
           <div class="card-body" id="adminBody">
@@ -1263,13 +1264,14 @@
       const renderUsers = () => {
         $('#adminBody').innerHTML = `
           <div class="table">
-            <div class="table-head"><span>ID</span><span>Nome</span><span>Email</span><span>Plano</span><span>Função</span><span>Status</span><span></span></div>
+            <div class="table-head"><span>ID</span><span>${esc(t('name'))}</span><span>${esc(t('email'))}</span><span>${esc(t('plan'))}</span><span>${esc(t('role'))}</span><span>${esc(t('validity'))}</span><span>${esc(t('status'))}</span><span></span></div>
             ${users.map((u) => `<div class="table-row">
               <span>${u.id}</span>
               <span>${esc(u.name)}</span>
               <span>${esc(u.email)}</span>
               <span class="status-pill ${u.plan_code === 'free' ? 'pending' : 'paid'}">${esc(u.plan_code)}</span>
               <span>${esc(u.role)}</span>
+              <span>${u.trial_end || u.current_period_end ? esc(fdate(u.trial_end || u.current_period_end)) : '—'}</span>
               <span>${u.is_active ? '<span class="status-pill active">✓</span>' : '<span class="status-pill overdue">✕</span>'}</span>
               <button class="btn btn-ghost btn-sm admin-edit" data-id="${u.id}">${esc(t('edit'))}</button>
             </div>`).join('')}
@@ -1280,9 +1282,35 @@
         }));
       };
 
+      const renderPlans = async () => {
+        $('#adminBody').innerHTML = `<div class="empty-state"><p>${esc(t('loading'))}</p></div>`;
+        let plans;
+        try { plans = await api('GET', '/api/admin/plans'); } catch (e) { $('#adminBody').innerHTML = `<div class="empty-state"><p>${esc(e.message)}</p></div>`; return; }
+        $('#adminBody').innerHTML = `
+          <div class="table">
+            <div class="table-head"><span>ID</span><span>${esc(t('name'))}</span><span>Código</span><span>${esc(t('price_monthly'))}</span><span>${esc(t('price_annual'))}</span><span>${esc(t('trial_days'))}</span><span>${esc(t('status'))}</span><span></span></div>
+            ${plans.map((p) => `<div class="table-row">
+              <span>${p.id}</span>
+              <span>${esc(p.name)}</span>
+              <span>${esc(p.code)}</span>
+              <span>${p.price_monthly.toFixed(2)}</span>
+              <span>${p.price_annual.toFixed(2)}</span>
+              <span>${p.trial_days}</span>
+              <span class="status-pill ${p.is_active ? 'active' : 'overdue'}">${p.is_active ? esc(t('active')) : '—'}</span>
+              <button class="btn btn-ghost btn-sm admin-plan-edit" data-id="${p.id}">${esc(t('edit'))}</button>
+            </div>`).join('')}
+          </div>`;
+        $('#adminBody').querySelectorAll('.admin-plan-edit').forEach((b) => b.addEventListener('click', () => {
+          const p = plans.find((x) => x.id === Number(b.dataset.id));
+          if (p) openPlanModal(p);
+        }));
+      };
+
       $$('#adminTabs .tab-btn').forEach((b) => b.addEventListener('click', () => {
         $$('#adminTabs .tab-btn').forEach((x) => x.classList.toggle('active', x === b));
-        if (b.dataset.tab === 'users') renderUsers(); else loadAdmin();
+        if (b.dataset.tab === 'users') renderUsers();
+        else if (b.dataset.tab === 'plans') renderPlans();
+        else loadAdmin();
       }));
     } catch (e) {
       el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${esc(e.message)}</p></div>`;
@@ -1765,6 +1793,7 @@
         <div class="form-group"><label>${esc(t('plan'))}</label><select id="auPlan"><option value="free" ${u.plan_code === 'free' ? 'selected' : ''}>${esc(t('free'))}</option><option value="pro" ${u.plan_code === 'pro' ? 'selected' : ''}>PRO</option><option value="family" ${u.plan_code === 'family' ? 'selected' : ''}>FAMÍLIA</option></select></div>
         <div class="form-group"><label>${esc(t('role'))}</label><select id="auRole"><option value="member" ${u.role === 'member' ? 'selected' : ''}>member</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option></select></div>
       </div>
+      <div class="form-group"><label>${esc(t('validity'))}</label><input type="date" id="auExpiry" value="${u.trial_end || u.current_period_end || ''}" /></div>
       <div class="settings-item"><span>${esc(t('active'))}</span><label class="switch"><input type="checkbox" id="auActive" ${u.is_active ? 'checked' : ''} /><span class="slider"></span></label></div>
       <div class="modal-actions">
         <button class="btn btn-danger" id="auDel">${esc(t('delete'))}</button>
@@ -1773,13 +1802,42 @@
       </div>`, u.name);
     $('#auSave').addEventListener('click', async () => {
       try {
-        await api('PUT', '/api/admin/users/' + u.id, { plan_code: $('#auPlan').value, role: $('#auRole').value, is_active: $('#auActive').checked });
+        await api('PUT', '/api/admin/users/' + u.id, { plan_code: $('#auPlan').value, role: $('#auRole').value, is_active: $('#auActive').checked, trial_end: $('#auExpiry').value || null });
         closeModal(); toast(t('save_success'), 'success'); loadAdmin();
       } catch (e) { toast(e.message, 'error'); }
     });
     $('#auDel').addEventListener('click', async () => {
       const ok = await confirmBox(t('delete_confirm')); if (!ok) return;
       try { await api('DELETE', '/api/admin/users/' + u.id); closeModal(); toast(t('deleted'), 'success'); loadAdmin(); } catch (e) { toast(e.message, 'error'); }
+    });
+  }
+
+  function openPlanModal(p) {
+    openModal(`
+      <div class="form-group"><label>${esc(t('name'))}</label><input id="auPlName" value="${esc(p.name)}" /></div>
+      <div class="form-row">
+        <div class="form-group"><label>${esc(t('price_monthly'))}</label><input type="number" step="0.01" id="auPlMonthly" value="${p.price_monthly}" /></div>
+        <div class="form-group"><label>${esc(t('price_annual'))}</label><input type="number" step="0.01" id="auPlAnnual" value="${p.price_annual}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>${esc(t('trial_days'))}</label><input type="number" step="1" id="auPlTrial" value="${p.trial_days}" /></div>
+        <div class="settings-item"><span>${esc(t('active'))}</span><label class="switch"><input type="checkbox" id="auPlActive" ${p.is_active ? 'checked' : ''} /><span class="slider"></span></label></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-modal-close>${esc(t('cancel'))}</button>
+        <button class="btn btn-primary" id="auPlSave">${esc(t('save'))}</button>
+      </div>`, p.code.toUpperCase());
+    $('#auPlSave').addEventListener('click', async () => {
+      try {
+        await api('PUT', '/api/admin/plans/' + p.id, {
+          name: $('#auPlName').value.trim(),
+          price_monthly: parseFloat($('#auPlMonthly').value) || 0,
+          price_annual: parseFloat($('#auPlAnnual').value) || 0,
+          trial_days: parseInt($('#auPlTrial').value, 10) || 0,
+          is_active: $('#auPlActive').checked
+        });
+        closeModal(); toast(t('save_success'), 'success'); loadAdmin();
+      } catch (e) { toast(e.message, 'error'); }
     });
   }
 /* ---------------- IMPORT ---------------- */

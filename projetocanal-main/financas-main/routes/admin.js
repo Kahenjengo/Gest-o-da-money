@@ -38,23 +38,36 @@ router.get('/dashboard', (req, res) => {
 
 router.get('/users', (req, res) => {
   const q = req.query.q ? `%${req.query.q}%` : null;
-  let sql = 'SELECT id, name, email, plan_code, role, country_code, currency, created_at, last_seen, is_active FROM users';
+  let sql = `SELECT u.id, u.name, u.email, u.plan_code, u.role, u.country_code, u.currency, u.created_at, u.last_seen, u.is_active, u.trial_start, u.trial_end,
+             s.current_period_end, s.next_billing_date
+             FROM users u LEFT JOIN subscriptions s ON s.id = (SELECT id FROM subscriptions WHERE user_id = u.id ORDER BY id DESC LIMIT 1)`;
   const params = [];
-  if (q) { sql += ' WHERE name LIKE ? OR email LIKE ?'; params.push(q, q); }
-  sql += ' ORDER BY id DESC LIMIT 200';
+  if (q) { sql += ' WHERE u.name LIKE ? OR u.email LIKE ?'; params.push(q, q); }
+  sql += ' ORDER BY u.id DESC LIMIT 200';
   res.json(db.prepare(sql).all(...params));
 });
 
 router.put('/users/:id', (req, res) => {
   const { id } = req.params;
-  const { plan_code, role, is_active } = req.body;
+  const { plan_code, role, is_active, trial_start, trial_end } = req.body;
   const existing = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!existing) return res.status(404).json({ error: 'Utilizador não encontrado.' });
   if (req.session.user.id === Number(id) && role && role !== 'admin') {
     return res.status(400).json({ error: 'Não pode rebaixar-se a si próprio.' });
   }
-  db.prepare('UPDATE users SET plan_code = COALESCE(?, plan_code), role = COALESCE(?, role), is_active = COALESCE(?, is_active) WHERE id = ?')
-    .run(plan_code || null, role || null, is_active === undefined ? null : (is_active ? 1 : 0), id);
+  db.prepare('UPDATE users SET plan_code = COALESCE(?, plan_code), role = COALESCE(?, role), is_active = COALESCE(?, is_active), trial_start = COALESCE(?, trial_start), trial_end = COALESCE(?, trial_end) WHERE id = ?')
+    .run(plan_code || null, role || null, is_active === undefined ? null : (is_active ? 1 : 0), trial_start || null, trial_end || null, id);
+  if (trial_end) {
+    const sub = db.prepare('SELECT id FROM subscriptions WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(id);
+    const subStatus = plan_code && plan_code !== 'free' ? 'active' : 'trial';
+    if (sub) {
+      db.prepare('UPDATE subscriptions SET current_period_end = ?, next_billing_date = ?, status = ?, plan_code = COALESCE(?, plan_code) WHERE id = ?')
+        .run(trial_end, trial_end, subStatus, plan_code || null, sub.id);
+    } else {
+      db.prepare('INSERT INTO subscriptions (user_id, plan_code, status, current_period_end, next_billing_date) VALUES (?,?,?,?,?)')
+        .run(id, plan_code || 'free', subStatus, trial_end, trial_end);
+    }
+  }
   res.json(db.prepare('SELECT id, name, email, plan_code, role, is_active FROM users WHERE id = ?').get(id));
 });
 
@@ -67,7 +80,9 @@ router.delete('/users/:id', (req, res) => {
 });
 
 router.get('/plans', (req, res) => {
-  res.json(staticData.getPlans());
+  const rows = db.prepare('SELECT * FROM subscription_plans ORDER BY sort').all();
+  rows.forEach((p) => { try { p.features = JSON.parse(p.features || '{}'); } catch (e) { p.features = {}; } });
+  res.json(rows);
 });
 
 router.put('/plans/:id', (req, res) => {
