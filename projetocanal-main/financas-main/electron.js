@@ -1,4 +1,12 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const electron = require('electron');
+
+if (typeof electron !== 'object' || !electron.app) {
+  console.log('[financeiq] Executado fora do Electron (web mode). A iniciar servidor web...');
+  require('./server');
+  return;
+}
+
+const { app, BrowserWindow, Menu, shell } = electron;
 const path = require('path');
 
 let mainWindow;
