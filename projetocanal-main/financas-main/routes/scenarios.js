@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../database');
 const { isAuthenticated } = require('../middleware/auth');
 const formula = require('../services/formula');
+const scenarioAi = require('../services/scenario-ai');
 const router = express.Router();
 
 router.use(isAuthenticated);
@@ -114,6 +115,40 @@ router.get('/', (req, res) => {
   const userId = req.session.user.id;
   const rows = db.prepare('SELECT * FROM scenario_models WHERE user_id = ? ORDER BY id DESC').all(userId);
   res.json(rows.map((r) => hydrateModel(r)));
+});
+
+router.post('/suggest', (req, res) => {
+  const userId = req.session.user.id;
+  const subject = String(req.body.subject || '').trim();
+  if (!subject) return res.status(400).json({ error: 'Descreve o assunto do cenário (ex.: comprar um carro, reserva de emergência).' });
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  res.json(scenarioAi.suggestModel(subject, user));
+});
+
+router.post('/:id/analyze', async (req, res) => {
+  const userId = req.session.user.id;
+  const model = getModel(userId, req.params.id);
+  if (!model) return res.status(404).json({ error: 'Modelo não encontrado.' });
+  let results;
+  try {
+    results = computeResults(model);
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+  const base = results.find((r) => /realista/i.test(r.name)) || results[0] || null;
+  const comparison = results.map((r) => ({
+    ...r,
+    base: !!(base && base.scenarioId === r.scenarioId),
+    delta: (r.result != null && base && base.result != null) ? fmtNum(r.result - base.result) : null
+  }));
+  const runData = { model, results: comparison, baseScenarioId: base ? base.scenarioId : null };
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  try {
+    const ins = await scenarioAi.insights(runData, model, user);
+    res.json(ins);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 router.post('/', (req, res) => {

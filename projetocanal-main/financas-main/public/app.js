@@ -1672,6 +1672,10 @@
     st.scns.forEach((sc) => st.vars.forEach((v) => { if (sc.values[v.key] === undefined) sc.values[v.key] = 0; }));
 
     openModal(`
+      <div class="scenario-ai-bar">
+        <div class="form-group" style="flex:1;margin-bottom:0"><label>✨ ${esc(t('scenario_ai_subject'))}</label><input id="scnAiSubject" placeholder="${esc(t('scenario_ai_subject_ph'))}" /></div>
+        <button class="btn btn-ghost btn-sm" id="scnAiGo" style="align-self:end">✨ ${esc(t('scenario_ai_suggest'))}</button>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>${esc(t('scenario_model'))}</label><input id="scnName" value="${esc(model ? model.name : '')}" /></div>
         <div class="form-group"><label>${esc(t('scenario_result_label'))}</label><input id="scnResultLabel" value="${esc(st.label)}" /></div>
@@ -1724,6 +1728,24 @@
     };
 
     renderVars(); renderScns();
+    $('#scnAiGo').addEventListener('click', async () => {
+      const subject = $('#scnAiSubject').value.trim();
+      if (!subject) { toast(t('required_field'), 'error'); return; }
+      const btn = $('#scnAiGo');
+      btn.disabled = true; btn.textContent = '...';
+      try {
+        const s = await api('POST', '/api/scenarios/suggest', { subject });
+        $('#scnName').value = s.name;
+        $('#scnDesc').value = s.description || '';
+        $('#scnResultLabel').value = s.result_label || 'Resultado';
+        $('#scnFormula').value = s.result_formula;
+        st.vars = s.variables.map((v) => ({ key: v.key, label: v.label || '', unit: v.unit || '' }));
+        st.scns = s.scenarios.map((sc) => ({ name: sc.name, values: Object.assign({}, sc.values) }));
+        renderVars(); renderScns();
+        toast(t('scenario_ai_filled'), 'success');
+      } catch (e) { toast(e.message, 'error'); }
+      btn.disabled = false; btn.textContent = '✨ ' + t('scenario_ai_suggest');
+    });
     $('#scnAddVar').addEventListener('click', () => {
       let k = 'var' + (st.vars.length + 1);
       while (st.vars.some((v) => v.key === k)) k = 'v' + (st.vars.length + Math.floor(Math.random() * 999));
@@ -1774,14 +1796,30 @@
           <p class="muted scenario-explain">${esc(r.explanation)}</p>
         </div>`).join('');
       openModal(`
+        <div id="scnInsights" class="hidden scenario-ai-insights"></div>
         <div class="scenario-compare">${rows || `<div class="empty-state"><p>${esc(t('empty'))}</p></div>`}</div>
         <div class="modal-actions">
           <button class="btn btn-ghost" id="scnExport">${esc(t('scenario_export'))}</button>
+          <button class="btn btn-ghost" id="scnAnalyze">✨ ${esc(t('scenario_ai_analyze'))}</button>
           <button class="btn btn-ghost" data-modal-close>${esc(t('close'))}</button>
           <button class="btn btn-primary" id="scnApplyGoal">${esc(t('scenario_apply_goal'))}</button>
         </div>`, t('scenario_compare_title') + ' — ' + model.name);
       $('#scnExport').addEventListener('click', async () => {
         try { const exp = await api('POST', '/api/scenarios/' + model.id + '/export', {}); downloadText(exp.csv, exp.filename, 'text/csv;charset=utf-8'); } catch (e) { toast(e.message, 'error'); }
+      });
+      $('#scnAnalyze').addEventListener('click', async () => {
+        const box = $('#scnInsights');
+        box.classList.remove('hidden');
+        box.innerHTML = `<p class="muted">${esc(t('scenario_ai_loading'))}</p>`;
+        try {
+          const ins = await api('POST', '/api/scenarios/' + model.id + '/analyze', {});
+          const sensHtml = (ins.sensitivity || []).map((s) => `
+            <div class="sens-row"><span>${esc(s.label)}</span><b>${fmtNum(s.impact)} ${esc(s.unit || '')}</b></div>`).join('');
+          box.innerHTML = `
+            <div class="scenario-ai-head">✨ ${esc(t('scenario_ai_title'))} ${ins.usedExternal ? '' : `<span class="badge-trial">${esc(t('scenario_ai_local'))}</span>`}</div>
+            <pre class="scenario-ai-text">${esc(ins.text)}</pre>
+            ${sensHtml ? `<div class="sens-block"><div class="sens-title">${esc(t('scenario_ai_sensitivity'))}</div>${sensHtml}</div>` : ''}`;
+        } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
       });
       $('#scnApplyGoal').addEventListener('click', () => chooseGoalToApply(data));
     } catch (e) {
