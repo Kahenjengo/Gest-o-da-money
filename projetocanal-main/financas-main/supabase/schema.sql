@@ -93,6 +93,35 @@ CREATE TABLE IF NOT EXISTS members (
   created_at TEXT DEFAULT (to_char(localtimestamp, 'YYYY-MM-DD HH24:MI:SS'))
 );
 
+CREATE TABLE IF NOT EXISTS scenario_models (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  result_formula TEXT NOT NULL,
+  result_label TEXT DEFAULT 'Resultado',
+  created_at TEXT DEFAULT (to_char(localtimestamp, 'YYYY-MM-DD HH24:MI:SS')),
+  updated_at TEXT DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS scenario_variables (
+  id BIGSERIAL PRIMARY KEY,
+  model_id BIGINT NOT NULL REFERENCES scenario_models(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  label TEXT DEFAULT '',
+  unit TEXT DEFAULT '',
+  sort INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS scenarios (
+  id BIGSERIAL PRIMARY KEY,
+  model_id BIGINT NOT NULL REFERENCES scenario_models(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  "values" TEXT NOT NULL,
+  created_at TEXT DEFAULT (to_char(localtimestamp, 'YYYY-MM-DD HH24:MI:SS')),
+  UNIQUE(model_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS countries (
   code TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -370,3 +399,6 @@ CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(user_id, read
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_sessions_expired ON sessions(expired);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_categories_default ON categories(type, name) WHERE user_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_scenario_models_user ON scenario_models(user_id);
+CREATE INDEX IF NOT EXISTS idx_scenario_vars_model ON scenario_variables(model_id);
+CREATE INDEX IF NOT EXISTS idx_scenarios_model ON scenarios(model_id);

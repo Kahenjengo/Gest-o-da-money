@@ -140,6 +140,44 @@ if (useSupabase) {
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS scenario_models (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      result_formula TEXT NOT NULL,
+      result_label TEXT DEFAULT 'Resultado',
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS scenario_variables (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      model_id INTEGER NOT NULL,
+      key TEXT NOT NULL,
+      label TEXT DEFAULT '',
+      unit TEXT DEFAULT '',
+      sort INTEGER DEFAULT 0,
+      FOREIGN KEY (model_id) REFERENCES scenario_models(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS scenarios (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      model_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      "values" TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (model_id) REFERENCES scenario_models(id) ON DELETE CASCADE,
+      UNIQUE(model_id, name)
+    );
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_scenario_models_user ON scenario_models(user_id);
+    CREATE INDEX IF NOT EXISTS idx_scenario_vars_model ON scenario_variables(model_id);
+    CREATE INDEX IF NOT EXISTS idx_scenarios_model ON scenarios(model_id);
   `);
 
   /* ============ Migration de usuários ============ */

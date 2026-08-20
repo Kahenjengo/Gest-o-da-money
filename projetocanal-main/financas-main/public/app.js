@@ -11,6 +11,22 @@
   const money = (v) => (window.FIQ && window.FIQ.fmtMoney) ? window.FIQ.fmtMoney(v, (S.settings && S.settings.currency) || 'AOA') : String(v);
   const fdate = (s) => (window.FIQ && window.FIQ.fmtDate) ? window.FIQ.fmtDate(s) : (s || '');
   const mlabel = (m) => (window.FIQ && window.FIQ.monthLabel) ? window.FIQ.monthLabel(m) : m;
+  const fmtNum = (v) => {
+    if (v == null || !isFinite(v)) return '—';
+    const r = Math.round(v * 1e6) / 1e6;
+    if (Object.is(r, -0)) return '0';
+    const abs = Math.abs(r);
+    const s = (abs !== 0 && abs < 1) ? String(r) : r.toFixed(2).replace(/\.?0+$/, '');
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  };
+  const downloadText = (content, filename, mime) => {
+    const blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename || 'download.txt';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 400);
+  };
 
   const S = {
     user: null, plan: null, settings: null, streak: 0,
@@ -683,7 +699,7 @@
     const el = $('#view-goals');
     showLoading(el);
     try {
-      const goals = await api('GET', '/api/goals');
+      const [goals, models] = await Promise.all([api('GET', '/api/goals'), api('GET', '/api/scenarios')]);
       S.goals = goals;
       el.innerHTML = `
         <div class="card">
@@ -707,6 +723,24 @@
                 </div>`;
               }).join('')}</div>` : `<div class="empty-state"><div class="empty-icon">🎯</div><p>${esc(t('empty'))}</p><button class="btn btn-primary empty-action" id="goalEmptyAdd">${esc(t('goal_new'))}</button></div>`}
           </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">🔮 ${esc(t('scenarios_title'))}</span><button class="btn btn-ghost btn-sm" id="goalSeekBtn">🎯 ${esc(t('goal_seek'))}</button><button class="btn btn-primary btn-sm" id="scnNew">＋ ${esc(t('scenarios_new'))}</button></div>
+          <div class="card-body">
+            ${models.length ? `<div class="cards-grid goals-grid">
+              ${models.map((m) => `
+                <div class="goal-card scenario-card">
+                  <div class="goal-head"><span class="goal-icon">🔮</span><span class="goal-name">${esc(m.name)}</span><button class="tx-action-btn scn-del" data-id="${m.id}">🗑️</button></div>
+                  ${m.description ? `<div class="muted scenario-desc">${esc(m.description)}</div>` : ''}
+                  <div class="goal-deadline">${m.variables.length} ${esc(t('scenario_vars_count'))} · ${m.scenarios.length} ${esc(t('scenario_scn_count'))}</div>
+                  <div class="scenario-formula" title="${esc(m.result_label || t('scenario_result'))}">${esc(m.result_formula)}</div>
+                  <div class="goal-actions">
+                    <button class="btn btn-ghost btn-sm scn-edit" data-id="${m.id}">${esc(t('scenario_edit'))}</button>
+                    <button class="btn btn-primary btn-sm scn-run" data-id="${m.id}">${esc(t('scenario_run'))}</button>
+                  </div>
+                </div>`).join('')}
+            </div>` : `<div class="empty-state"><div class="empty-icon">🔮</div><p>${esc(t('scenario_no_models'))}</p><button class="btn btn-primary empty-action" id="scnEmptyNew">${esc(t('scenarios_new'))}</button></div>`}
+          </div>
         </div>`;
 
       $('#goalAdd').addEventListener('click', () => openGoalModal());
@@ -717,6 +751,16 @@
         try { await api('DELETE', '/api/goals/' + id); toast(t('deleted'), 'success'); loadGoals(); loadDashboardQuiet(); } catch (e) { toast(e.message, 'error'); }
       }));
       el.querySelectorAll('.goal-contrib').forEach((b) => b.addEventListener('click', () => { const g = goals.find((x) => x.id === Number(b.dataset.id)); if (g) openContributeModal(g); }));
+
+      $('#scnNew').addEventListener('click', () => openScenarioModal());
+      const sne = $('#scnEmptyNew'); sne && sne.addEventListener('click', () => openScenarioModal());
+      $('#goalSeekBtn').addEventListener('click', () => openGoalSeekModal());
+      el.querySelectorAll('.scn-edit').forEach((b) => b.addEventListener('click', () => { const m = models.find((x) => x.id === Number(b.dataset.id)); if (m) openScenarioModal(m); }));
+      el.querySelectorAll('.scn-del').forEach((b) => b.addEventListener('click', async () => {
+        const id = Number(b.dataset.id); const ok = await confirmBox(t('delete_confirm')); if (!ok) return;
+        try { await api('DELETE', '/api/scenarios/' + id); toast(t('deleted'), 'success'); loadGoals(); } catch (e) { toast(e.message, 'error'); }
+      }));
+      el.querySelectorAll('.scn-run').forEach((b) => b.addEventListener('click', () => { const m = models.find((x) => x.id === Number(b.dataset.id)); if (m) runScenarios(m); }));
     } catch (e) {
       el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>${esc(e.message)}</p></div>`;
     }
@@ -1610,6 +1654,238 @@
         await api('POST', '/api/goals/' + g.id + '/contribute', { amount });
         closeModal(); toast(t('save_success'), 'success');
         await loadGoals(); loadDashboardQuiet();
+      } catch (e) { toast(e.message, 'error'); }
+    });
+  }
+
+  /* ---------------- ANÁLISE DE HIPÓTESES (cenários + goal seek) ---------------- */
+  function openScenarioModal(model) {
+    const st = {
+      vars: model ? model.variables.map((v) => ({ key: v.key, label: v.label || '', unit: v.unit || '' }))
+        : [{ key: 'receita', label: 'Receita', unit: '' }, { key: 'margem', label: 'Margem', unit: '%' }, { key: 'custo', label: 'Custo fixo', unit: '' }],
+      scns: model ? model.scenarios.map((s) => ({ name: s.name, values: Object.assign({}, s.values) }))
+        : [{ name: 'Otimista', values: {} }, { name: 'Realista', values: {} }, { name: 'Pessimista', values: {} }],
+      formula: model ? model.result_formula : 'receita * (margem / 100) - custo',
+      label: model ? model.result_label : 'Lucro mensal',
+      desc: model ? (model.description || '') : ''
+    };
+    st.scns.forEach((sc) => st.vars.forEach((v) => { if (sc.values[v.key] === undefined) sc.values[v.key] = 0; }));
+
+    openModal(`
+      <div class="form-row">
+        <div class="form-group"><label>${esc(t('scenario_model'))}</label><input id="scnName" value="${esc(model ? model.name : '')}" /></div>
+        <div class="form-group"><label>${esc(t('scenario_result_label'))}</label><input id="scnResultLabel" value="${esc(st.label)}" /></div>
+      </div>
+      <div class="form-group"><label>${esc(t('scenario_desc'))}</label><input id="scnDesc" value="${esc(st.desc)}" /></div>
+      <div class="form-group"><label>${esc(t('scenario_formula'))}</label><input id="scnFormula" value="${esc(st.formula)}" /><small class="muted">${esc(t('scenario_formula_hint'))}</small></div>
+      <div class="form-group"><label>${esc(t('scenario_variables'))}</label><div id="scnVars"></div><button class="btn btn-ghost btn-sm" id="scnAddVar">${esc(t('scenario_add_var'))}</button></div>
+      <div class="form-group"><label>${esc(t('scenario_scenarios'))}</label><div id="scnScns"></div><button class="btn btn-ghost btn-sm" id="scnAddScn">${esc(t('scenario_add_scn'))}</button></div>
+      <div class="modal-actions"><button class="btn btn-ghost" data-modal-close>${esc(t('cancel'))}</button><button class="btn btn-primary" id="scnSave">${esc(t('save'))}</button></div>`, model ? t('scenario_edit') : t('scenarios_new'));
+
+    const renderVars = () => {
+      const box = $('#scnVars');
+      box.innerHTML = st.vars.map((v, i) => `
+        <div class="scn-var-row">
+          <input data-vi="${i}" data-f="key" value="${esc(v.key)}" placeholder="${esc(t('scenario_variable_key'))}" />
+          <input data-vi="${i}" data-f="label" value="${esc(v.label)}" placeholder="${esc(t('scenario_variable_label'))}" />
+          <input data-vi="${i}" data-f="unit" value="${esc(v.unit)}" placeholder="${esc(t('scenario_variable_unit'))}" />
+          <button class="tx-action-btn scn-var-del" data-vi="${i}">✕</button>
+        </div>`).join('');
+      box.querySelectorAll('[data-vi]').forEach((inp) => inp.addEventListener('input', () => { const v = st.vars[Number(inp.dataset.vi)]; v[inp.dataset.f] = inp.value; }));
+      box.querySelectorAll('.scn-var-del').forEach((b) => b.addEventListener('click', () => {
+        const i = Number(b.dataset.vi);
+        const key = st.vars[i].key;
+        st.vars.splice(i, 1);
+        st.scns.forEach((sc) => delete sc.values[key]);
+        renderVars(); renderScns();
+      }));
+    };
+    const renderScns = () => {
+      const box = $('#scnScns');
+      box.innerHTML = st.scns.map((sc, i) => `
+        <div class="scn-scn-row">
+          <div class="scn-scn-head">
+            <input data-si="${i}" data-f="name" value="${esc(sc.name)}" placeholder="${esc(t('scenario_scenarios'))}" />
+            <button class="tx-action-btn scn-scn-del" data-si="${i}">✕</button>
+          </div>
+          <div class="scn-scn-vals">
+            ${st.vars.map((v) => `
+              <label class="scn-val-input"><span>${esc(v.key)}</span>
+                <input type="number" step="any" data-si="${i}" data-k="${esc(v.key)}" value="${esc(sc.values[v.key] != null ? sc.values[v.key] : 0)}" />
+              </label>`).join('')}
+          </div>
+        </div>`).join('');
+      box.querySelectorAll('[data-si]').forEach((inp) => inp.addEventListener('input', () => {
+        const sc = st.scns[Number(inp.dataset.si)];
+        if (inp.dataset.f === 'name') sc.name = inp.value;
+        else if (inp.dataset.k) { const n = parseFloat(inp.value); sc.values[inp.dataset.k] = isFinite(n) ? n : 0; }
+      }));
+      box.querySelectorAll('.scn-scn-del').forEach((b) => b.addEventListener('click', () => { st.scns.splice(Number(b.dataset.si), 1); renderScns(); }));
+    };
+
+    renderVars(); renderScns();
+    $('#scnAddVar').addEventListener('click', () => {
+      let k = 'var' + (st.vars.length + 1);
+      while (st.vars.some((v) => v.key === k)) k = 'v' + (st.vars.length + Math.floor(Math.random() * 999));
+      st.vars.push({ key: k, label: '', unit: '' });
+      st.scns.forEach((sc) => { sc.values[k] = 0; });
+      renderVars(); renderScns();
+    });
+    $('#scnAddScn').addEventListener('click', () => {
+      st.scns.push({ name: '', values: Object.fromEntries(st.vars.map((v) => [v.key, 0])) });
+      renderScns();
+    });
+    $('#scnSave').addEventListener('click', async () => {
+      const payload = {
+        name: $('#scnName').value.trim(),
+        description: $('#scnDesc').value.trim(),
+        result_label: $('#scnResultLabel').value.trim() || 'Resultado',
+        result_formula: $('#scnFormula').value.trim(),
+        variables: st.vars.map((v) => ({ key: v.key.trim(), label: v.label.trim(), unit: v.unit.trim() })),
+        scenarios: st.scns.map((sc) => ({ name: sc.name.trim(), values: Object.assign({}, sc.values) }))
+      };
+      if (!payload.name || !payload.result_formula) { toast(t('required_field'), 'error'); return; }
+      try {
+        if (model) await api('PUT', '/api/scenarios/' + model.id, payload);
+        else await api('POST', '/api/scenarios', payload);
+        closeModal(); toast(t('save_success'), 'success');
+        await loadGoals();
+      } catch (e) { toast(e.message, 'error'); }
+    });
+  }
+
+  async function runScenarios(model) {
+    openModal('<div class="empty-state"><div class="empty-icon">🔮</div><p>' + esc(t('loading')) + '</p></div>', t('scenario_compare_title'));
+    try {
+      const data = await api('POST', '/api/scenarios/' + model.id + '/run', {});
+      const res = data.results || [];
+      const vars = data.model.variables || [];
+      const rows = res.map((r) => `
+        <div class="scenario-row ${r.base ? 'scenario-base' : ''}">
+          <div class="scenario-row-head">
+            <strong>${esc(r.name)}</strong>
+            ${r.base ? `<span class="badge-trial">${esc(t('scenario_base'))}</span>` : ''}
+            ${r.delta != null ? `<span class="scenario-delta ${r.delta >= 0 ? 'pos' : 'neg'}">${r.delta >= 0 ? '▲' : '▼'} ${fmtNum(Math.abs(r.delta))}</span>` : ''}
+          </div>
+          <div class="scenario-vals">
+            ${vars.map((v) => `<span class="scenario-val"><em>${esc(v.label || v.key)}</em> <b>${fmtNum(r.values[v.key])}</b> ${esc(v.unit || '')}</span>`).join('')}
+          </div>
+          <div class="scenario-result"><span>${esc(data.model.result_label || t('scenario_result'))}</span><b>${r.result == null ? '—' : fmtNum(r.result)}</b></div>
+          <p class="muted scenario-explain">${esc(r.explanation)}</p>
+        </div>`).join('');
+      openModal(`
+        <div class="scenario-compare">${rows || `<div class="empty-state"><p>${esc(t('empty'))}</p></div>`}</div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="scnExport">${esc(t('scenario_export'))}</button>
+          <button class="btn btn-ghost" data-modal-close>${esc(t('close'))}</button>
+          <button class="btn btn-primary" id="scnApplyGoal">${esc(t('scenario_apply_goal'))}</button>
+        </div>`, t('scenario_compare_title') + ' — ' + model.name);
+      $('#scnExport').addEventListener('click', async () => {
+        try { const exp = await api('POST', '/api/scenarios/' + model.id + '/export', {}); downloadText(exp.csv, exp.filename, 'text/csv;charset=utf-8'); } catch (e) { toast(e.message, 'error'); }
+      });
+      $('#scnApplyGoal').addEventListener('click', () => chooseGoalToApply(data));
+    } catch (e) {
+      openModal(`<div class="empty-state"><div class="empty-icon">⚠️</div><p>${esc(e.message)}</p></div>`, t('scenario_compare_title'));
+    }
+  }
+
+  function chooseGoalToApply(data) {
+    const scenarios = data.results || [];
+    if (!scenarios.length) return;
+    openModal(`
+      <div class="form-group"><label>${esc(t('scenario_scenarios'))}</label>
+        <select id="cgScn">${scenarios.map((s) => `<option value="${s.scenarioId}">${esc(s.name)} (${fmtNum(s.result)})</option>`).join('')}</select></div>
+      <div class="modal-actions"><button class="btn btn-ghost" data-modal-close>${esc(t('cancel'))}</button><button class="btn btn-primary" id="cgGo">${esc(t('confirm'))}</button></div>`, t('scenario_apply_goal'));
+    $('#cgGo').addEventListener('click', () => {
+      const sc = scenarios.find((s) => String(s.scenarioId) === $('#cgScn').value);
+      if (!sc || sc.result == null) { toast(t('error_generic'), 'error'); return; }
+      applyValueToGoal(sc.result, sc.name + ': ' + fmtNum(sc.result));
+    });
+  }
+
+  function applyValueToGoal(value, label) {
+    const goals = S.goals || [];
+    if (!goals.length) { toast(t('goal_new'), 'info'); return; }
+    openModal(`
+      <p class="muted">${esc(label || '')} → <b>${fmtNum(value)}</b></p>
+      <div class="form-group"><label>${esc(t('scenario_choose_goal'))}</label>
+        <select id="vgGoal">${goals.map((g) => `<option value="${g.id}">${esc(g.icon || '🎯')} ${esc(g.name)}</option>`).join('')}</select></div>
+      <div class="form-group"><label>${esc(t('scenario_field'))}</label>
+        <select id="vgField">
+          <option value="monthly_contribution">${esc(t('scenario_goal_monthly'))}</option>
+          <option value="target">${esc(t('scenario_goal_target'))}</option>
+          <option value="current">${esc(t('scenario_goal_current'))}</option>
+        </select></div>
+      <div class="modal-actions"><button class="btn btn-ghost" data-modal-close>${esc(t('cancel'))}</button><button class="btn btn-primary" id="vgGo">${esc(t('confirm'))}</button></div>`, t('scenario_apply_goal'));
+    $('#vgGo').addEventListener('click', async () => {
+      const goal = goals.find((g) => g.id === Number($('#vgGoal').value));
+      const field = $('#vgField').value;
+      if (!goal) { toast(t('error_generic'), 'error'); return; }
+      const body = {
+        name: goal.name, icon: goal.icon || '🏆', target: goal.target, current: goal.current || 0,
+        deadline: goal.deadline || null, monthly_contribution: goal.monthly_contribution || 0,
+        category: goal.category || null, priority: goal.priority || 1
+      };
+      body[field] = value;
+      try { await api('PUT', '/api/goals/' + goal.id, body); closeModal(); toast(t('save_success'), 'success'); loadGoals(); loadDashboardQuiet(); } catch (e) { toast(e.message, 'error'); }
+    });
+  }
+
+  async function openGoalSeekModal() {
+    let models;
+    try { models = await api('GET', '/api/scenarios'); } catch (e) { toast(e.message, 'error'); return; }
+    if (!models.length) { toast(t('scenario_no_models'), 'info'); return; }
+    openModal(`
+      <div class="form-group"><label>${esc(t('scenario_model'))}</label>
+        <select id="gsModel">${models.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select></div>
+      <div class="form-group"><label>${esc(t('scenario_scenarios'))}</label><select id="gsScenario"></select></div>
+      <div class="form-group"><label>${esc(t('goal_seek_variable'))}</label><select id="gsVar"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>${esc(t('goal_seek_target'))}</label><input type="number" step="any" id="gsTarget" /></div>
+        <div class="form-group"><label>${esc(t('goal_seek_guess'))}</label><input type="number" step="any" id="gsGuess" /></div>
+      </div>
+      <div id="gsResult"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-modal-close>${esc(t('cancel'))}</button>
+        <button class="btn btn-primary" id="gsGo">${esc(t('goal_seek_calc'))}</button>
+      </div>`, t('goal_seek_title'));
+    const syncModel = () => {
+      const m = models.find((x) => x.id === Number($('#gsModel').value));
+      if (!m) return;
+      $('#gsScenario').innerHTML = m.scenarios.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+      $('#gsVar').innerHTML = m.variables.map((v) => `<option value="${esc(v.key)}">${esc(v.label || v.key)}${v.unit ? ' (' + esc(v.unit) + ')' : ''}</option>`).join('');
+    };
+    $('#gsModel').addEventListener('change', syncModel);
+    syncModel();
+    $('#gsGo').addEventListener('click', async () => {
+      const m = models.find((x) => x.id === Number($('#gsModel').value));
+      const body = { scenarioId: Number($('#gsScenario').value), variable: $('#gsVar').value, target: parseFloat($('#gsTarget').value), guess: parseFloat($('#gsGuess').value) };
+      if (!isFinite(body.target)) { toast(t('required_field'), 'error'); return; }
+      try {
+        const r = await api('POST', '/api/scenarios/' + m.id + '/goal-seek', body);
+        const conv = r.converged ? t('goal_seek_converged') : t('goal_seek_not_converged');
+        $('#gsResult').innerHTML = `
+          <div class="scenario-seek-result ${r.converged ? 'ok' : 'warn'}">
+            <p class="muted">${esc(t('goal_seek_found'))} — <b>${esc(r.variableLabel)}</b> ${r.converged ? '✓' : '≈'} <span class="seek-conv">${esc(conv)}</span></p>
+            <div class="seek-value">${fmtNum(r.found)}${esc(r.unit ? ' ' + r.unit : '')}</div>
+            <p class="muted">${esc(t('goal_seek_before'))}: ${fmtNum(r.before.value)} → ${fmtNum(r.before.result)}</p>
+            <p class="muted">${esc(t('goal_seek_after'))}: ${fmtNum(r.after.value)} → ${fmtNum(r.after.result)}</p>
+            <p class="muted scenario-explain">${esc(r.explanation)}</p>
+            <div class="modal-actions" style="padding:0;margin-top:12px">
+              <button class="btn btn-ghost" id="gsDiscard">${esc(t('goal_seek_discard'))}</button>
+              <button class="btn btn-ghost" id="gsApplyGoal">${esc(t('goal_seek_apply_goal'))}</button>
+              <button class="btn btn-primary" id="gsApplyScn">${esc(t('goal_seek_apply_scenario'))}</button>
+            </div>
+          </div>`;
+        const foundVal = r.found;
+        $('#gsDiscard').addEventListener('click', () => { closeModal(); toast(t('deleted'), 'info'); });
+        $('#gsApplyGoal').addEventListener('click', () => applyValueToGoal(foundVal, r.variableLabel + ': ' + fmtNum(foundVal)));
+        $('#gsApplyScn').addEventListener('click', async () => {
+          try {
+            await api('POST', '/api/scenarios/' + m.id + '/scenarios/' + r.scenarioId + '/apply', { variable: r.variable, value: foundVal });
+            closeModal(); toast(t('save_success'), 'success'); loadGoals();
+          } catch (e) { toast(e.message, 'error'); }
+        });
       } catch (e) { toast(e.message, 'error'); }
     });
   }

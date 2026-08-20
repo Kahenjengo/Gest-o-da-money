@@ -1094,6 +1094,146 @@ select {
 }
 
 /* ============================================================
+   ANÁLISE DE HIPÓTESES (cenários + goal seek)
+   ============================================================ */
+.scenario-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scenario-desc {
+  font-size: 12px;
+}
+.scenario-formula {
+  font-family: monospace;
+  font-size: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.scn-var-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 0.8fr 32px;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.scn-scn-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin-bottom: 8px;
+  background: var(--bg-card);
+}
+.scn-scn-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.scn-scn-head input {
+  flex: 1;
+}
+.scn-scn-vals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+.scn-val-input {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.scenario-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.scenario-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  background: var(--bg-card);
+}
+.scenario-row.scenario-base {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-glow);
+}
+.scenario-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.scenario-vals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+}
+.scenario-val em {
+  display: block;
+  font-style: normal;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.scenario-result {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+.scenario-result b {
+  font-size: 18px;
+  color: var(--accent);
+}
+.scenario-delta {
+  font-size: 12px;
+  font-weight: 700;
+}
+.scenario-delta.pos {
+  color: var(--income);
+}
+.scenario-delta.neg {
+  color: var(--expense);
+}
+.scenario-explain {
+  font-size: 12px;
+  margin-top: 6px;
+}
+.scenario-seek-result {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-top: 8px;
+}
+.scenario-seek-result.ok {
+  border-color: var(--income);
+}
+.scenario-seek-result.warn {
+  border-color: var(--expense);
+}
+.seek-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--accent);
+  margin: 4px 0;
+}
+.seek-conv {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ============================================================
    ACCOUNTS
    ============================================================ */
 .account-card {
