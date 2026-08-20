@@ -1,13 +1,37 @@
 const { Store } = require('express-session');
 
+function makeNodeSqliteAdapter(file) {
+  const { DatabaseSync } = require('node:sqlite');
+  const raw = new DatabaseSync(file);
+  const norm = (p) => p.map((v) => (v === undefined ? null : v));
+  return {
+    prepare(sql) {
+      const st = raw.prepare(sql);
+      return {
+        get: (...a) => st.get(...norm(a)),
+        all: (...a) => st.all(...norm(a)),
+        run: (...a) => st.run(...norm(a)),
+      };
+    },
+    exec: (sql) => raw.exec(sql),
+    pragma: (src) => raw.exec('PRAGMA ' + src),
+    close: () => raw.close(),
+  };
+}
+
 class BetterSQLite3SessionStore extends Store {
   constructor(options = {}) {
     super();
     this.db = options.db;
     if (!this.db || typeof this.db.prepare !== 'function') {
-      const Database = require('better-sqlite3');
       const path = require('path');
-      this.db = new Database(options.db || path.join(options.dir || '.', 'sessions.db'));
+      const file = options.db || path.join(options.dir || '.', 'sessions.db');
+      try {
+        const Database = require('better-sqlite3');
+        this.db = new Database(file);
+      } catch (e) {
+        this.db = makeNodeSqliteAdapter(file);
+      }
       this.db.pragma('journal_mode = WAL');
     }
     try {
