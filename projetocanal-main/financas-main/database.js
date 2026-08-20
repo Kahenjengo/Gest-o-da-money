@@ -14,7 +14,38 @@ if (useSupabase) {
   dbPath = db.label;
   console.log('[financeiq] Supabase/PostgreSQL em ' + dbPath);
 } else {
-  const Database = require('better-sqlite3');
+  function makeNodeSqliteAdapter(raw) {
+    const norm = (p) => p.map((v) => (v === undefined ? null : v));
+    return {
+      _driver: 'node:sqlite',
+      prepare(sql) {
+        const st = raw.prepare(sql);
+        return {
+          get(...p) { return st.get(...norm(p)); },
+          all(...p) { return st.all(...norm(p)); },
+          run(...p) { return st.run(...norm(p)); },
+        };
+      },
+      exec(sql) { return raw.exec(sql); },
+      pragma(source) { raw.exec('PRAGMA ' + source); },
+      close() { raw.close(); },
+    };
+  }
+
+  function openSqlite(file) {
+    if (process.env.SQLITE_DRIVER !== 'node') {
+      try {
+        const Database = require('better-sqlite3');
+        const d = new Database(file);
+        d._driver = 'better-sqlite3';
+        return d;
+      } catch (e) {
+        console.warn('[financeiq] better-sqlite3 indisponível (' + e.message + '); a usar node:sqlite.');
+      }
+    }
+    const { DatabaseSync } = require('node:sqlite');
+    return makeNodeSqliteAdapter(new DatabaseSync(file));
+  }
 
   function resolveDbPath() {
     const explicit = process.env.DB_PATH;
@@ -24,7 +55,7 @@ if (useSupabase) {
     const alt = path.join(altDir, 'financeiq.db');
     const preferred = explicit || (inProduction ? alt : path.join(__dirname, 'financeiq.db'));
     try {
-      const probe = new Database(preferred);
+      const probe = openSqlite(preferred);
       probe.close();
       return preferred;
     } catch (e) {
@@ -34,9 +65,9 @@ if (useSupabase) {
   }
 
   dbPath = resolveDbPath();
-  db = new Database(dbPath);
+  db = openSqlite(dbPath);
 
-  console.log('[financeiq] SQLite em ' + dbPath);
+  console.log('[financeiq] SQLite (' + db._driver + ') em ' + dbPath);
 
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
