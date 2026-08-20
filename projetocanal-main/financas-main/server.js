@@ -31,7 +31,6 @@ log('A arrancar FinanceIQ | node=' + process.version + ' | platform=' + process.
 
 const db = require('./database');
 const dbPathLabel = (typeof db.dbPath === 'string') ? db.dbPath : 'n/a';
-const Database = require('better-sqlite3');
 
 let adminBootstrapMsg = null;
 if (process.env.ADMIN_EMAIL) {
@@ -71,22 +70,6 @@ if (process.env.ADMIN_EMAIL) {
   }
 }
 
-function resolveSessionDbPath() {
-  const explicit = process.env.SESSION_DB_PATH;
-  const inProduction = process.env.NODE_ENV === 'production';
-  const altDir = path.join(os.homedir(), '.financeiq');
-  try { fs.mkdirSync(altDir, { recursive: true }); } catch (e) {}
-  const alt = path.join(altDir, 'sessions.db');
-  const preferred = explicit || (inProduction ? alt : path.join(__dirname, 'sessions.db'));
-  try {
-    const probe = new Database(preferred);
-    probe.close();
-    return preferred;
-  } catch (e) {
-    console.warn('[financeiq] não foi possível abrir ' + preferred + ' (' + e.message + '); sessões em ' + alt);
-    return alt;
-  }
-}
 const authRoutes = require('./routes/auth');
 const pagesRoutes = require('./routes/pages');
 const transactionsRoutes = require('./routes/transactions');
