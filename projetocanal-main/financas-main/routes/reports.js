@@ -36,7 +36,7 @@ router.get('/:type', (req, res) => {
     out.anomalies = intelligence.detectAnomalies(userId);
     const score = intelligence.computeScore(userId, user);
     out.score = score.score;
-    db.prepare(`INSERT OR REPLACE INTO financial_scores (user_id, month, score, factors) VALUES (?,?,?,?)`)
+    db.prepare(`INSERT INTO financial_scores (user_id, month, score, factors) VALUES (?,?,?,?) ON CONFLICT (user_id, month) DO UPDATE SET score = EXCLUDED.score, factors = EXCLUDED.factors`)
       .run(userId, m, score.score, JSON.stringify(score.factors));
   } else if (type === 'comparison') {
     out.months = intelligence.balanceHistory(userId, months);

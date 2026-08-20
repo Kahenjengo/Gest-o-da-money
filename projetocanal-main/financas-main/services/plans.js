@@ -66,7 +66,7 @@ function upgrade(userId, planCode, period, durationMonths) {
   let endD = new Date();
   endD.setMonth(endD.getMonth() + (durationMonths || 1));
   const end = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-  db.prepare(`INSERT OR REPLACE INTO subscriptions (user_id, plan_code, status, trial_start, trial_end, current_period_start, current_period_end, next_billing_date) VALUES (?,?,?,?,?,?,?,?)`)
+  db.prepare(`INSERT INTO subscriptions (user_id, plan_code, status, trial_start, trial_end, current_period_start, current_period_end, next_billing_date) VALUES (?,?,?,?,?,?,?,?)`)
     .run(userId, planCode, 'active',
       todayStr(), null,
       start, end, end);

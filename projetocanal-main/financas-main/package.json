@@ -23,6 +23,7 @@
     "express": "^4.21.0",
     "express-session": "^1.18.1",
     "helmet": "^8.0.0",
+    "pg": "^8.11.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

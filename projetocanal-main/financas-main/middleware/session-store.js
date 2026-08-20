@@ -1,21 +1,25 @@
 const { Store } = require('express-session');
-const Database = require('better-sqlite3');
-const path = require('path');
 
 class BetterSQLite3SessionStore extends Store {
   constructor(options = {}) {
     super();
-    const dbPath = options.db || path.join(options.dir || '.', 'sessions.db');
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS sessions (
-        sid TEXT PRIMARY KEY,
-        expired INTEGER NOT NULL,
-        sess TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_sessions_expired ON sessions(expired);
-    `);
+    this.db = options.db;
+    if (!this.db || typeof this.db.prepare !== 'function') {
+      const Database = require('better-sqlite3');
+      const path = require('path');
+      this.db = new Database(options.db || path.join(options.dir || '.', 'sessions.db'));
+      this.db.pragma('journal_mode = WAL');
+    }
+    try {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          sid TEXT PRIMARY KEY,
+          expired INTEGER NOT NULL,
+          sess TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sessions_expired ON sessions(expired);
+      `);
+    } catch (e) { /* a tabela já existe */ }
 
     this.ttl = options.ttl || 86400;
     this.cleanupInterval = setInterval(() => this.cleanup(), 15 * 60 * 1000);
@@ -37,7 +41,7 @@ class BetterSQLite3SessionStore extends Store {
       const maxAge = sess.cookie && sess.cookie.maxAge ? sess.cookie.maxAge : this.ttl * 1000;
       const expired = Date.now() + maxAge;
       const data = JSON.stringify(sess);
-      this.db.prepare('INSERT OR REPLACE INTO sessions (sid, expired, sess) VALUES (?, ?, ?)').run(sid, expired, data);
+      this.db.prepare('INSERT INTO sessions (sid, expired, sess) VALUES (?, ?, ?) ON CONFLICT (sid) DO UPDATE SET expired = EXCLUDED.expired, sess = EXCLUDED.sess').run(sid, expired, data);
       callback(null);
     } catch (e) {
       callback(e);
@@ -74,7 +78,7 @@ class BetterSQLite3SessionStore extends Store {
 
   close() {
     clearInterval(this.cleanupInterval);
-    this.db.close();
+    try { this.db.close(); } catch (_) {}
   }
 }
 

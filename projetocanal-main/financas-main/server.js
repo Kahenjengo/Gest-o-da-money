@@ -141,7 +141,7 @@ app.use(express.urlencoded({ extended: false, limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  store: new BetterSQLite3SessionStore({ db: resolveSessionDbPath() }),
+  store: new BetterSQLite3SessionStore({ db }),
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,

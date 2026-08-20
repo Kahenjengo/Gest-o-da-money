@@ -30,7 +30,7 @@ router.get('/score', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   const score = intelligence.computeScore(userId, user);
   const m = monthStr();
-  db.prepare('INSERT OR REPLACE INTO financial_scores (user_id, month, score, factors) VALUES (?,?,?,?)')
+  db.prepare('INSERT INTO financial_scores (user_id, month, score, factors) VALUES (?,?,?,?) ON CONFLICT (user_id, month) DO UPDATE SET score = EXCLUDED.score, factors = EXCLUDED.factors')
     .run(userId, m, score.score, JSON.stringify(score.factors));
   const history = db.prepare('SELECT month, score FROM financial_scores WHERE user_id = ? ORDER BY month').all(userId);
   res.json({ ...score, history });

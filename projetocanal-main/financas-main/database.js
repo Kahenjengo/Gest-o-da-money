@@ -1,430 +1,444 @@
-const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-function resolveDbPath() {
-  const explicit = process.env.DB_PATH;
-  const inProduction = process.env.NODE_ENV === 'production';
-  const altDir = path.join(os.homedir(), '.financeiq');
-  try { fs.mkdirSync(altDir, { recursive: true }); } catch (e) { console.warn('[financeiq] não foi possível criar ' + altDir + ': ' + e.message); }
-  const alt = path.join(altDir, 'financeiq.db');
-  const preferred = explicit || (inProduction ? alt : path.join(__dirname, 'financeiq.db'));
-  try {
-    const probe = new Database(preferred);
-    probe.close();
-    return preferred;
-  } catch (e) {
-    console.warn('[financeiq] não foi possível abrir ' + preferred + ' (' + e.message + '); a usar ' + alt);
-    return alt;
+let db;
+let dbPath;
+let ensureColumn = () => {};
+
+const useSupabase = !!(process.env.SUPABASE_DB_URL || process.env.DATABASE_URL);
+
+if (useSupabase) {
+  const PGDatabase = require('./db-pg');
+  db = new PGDatabase(process.env.SUPABASE_DB_URL || process.env.DATABASE_URL);
+  dbPath = db.label;
+  console.log('[financeiq] Supabase/PostgreSQL em ' + dbPath);
+} else {
+  const Database = require('better-sqlite3');
+
+  function resolveDbPath() {
+    const explicit = process.env.DB_PATH;
+    const inProduction = process.env.NODE_ENV === 'production';
+    const altDir = path.join(os.homedir(), '.financeiq');
+    try { fs.mkdirSync(altDir, { recursive: true }); } catch (e) { console.warn('[financeiq] não foi possível criar ' + altDir + ': ' + e.message); }
+    const alt = path.join(altDir, 'financeiq.db');
+    const preferred = explicit || (inProduction ? alt : path.join(__dirname, 'financeiq.db'));
+    try {
+      const probe = new Database(preferred);
+      probe.close();
+      return preferred;
+    } catch (e) {
+      console.warn('[financeiq] não foi possível abrir ' + preferred + ' (' + e.message + '); a usar ' + alt);
+      return alt;
+    }
   }
-}
 
-const dbPath = resolveDbPath();
-const db = new Database(dbPath);
+  dbPath = resolveDbPath();
+  db = new Database(dbPath);
 
-console.log('[financeiq] SQLite em ' + dbPath);
+  console.log('[financeiq] SQLite em ' + dbPath);
 
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
 
-function tableExists(name) {
-  return !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name);
-}
-
-function columnExists(table, column) {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
-  return cols.some(c => c.name === column);
-}
-
-function ensureColumn(table, column, ddl) {
-  if (tableExists(table) && !columnExists(table, column)) {
-    try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`); } catch (e) { /* ignore */ }
+  function tableExists(name) {
+    return !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name);
   }
-}
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    avatar TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now', 'localtime'))
-  );
+  function columnExists(table, column) {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+    return cols.some(c => c.name === column);
+  }
 
-  CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
-    description TEXT NOT NULL,
-    amount REAL NOT NULL,
-    date TEXT NOT NULL,
-    category TEXT NOT NULL,
-    note TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+  ensureColumn = function ensureColumn(table, column, ddl) {
+    if (tableExists(table) && !columnExists(table, column)) {
+      try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`); } catch (e) { /* ignore */ }
+    }
+  };
 
-  CREATE TABLE IF NOT EXISTS budgets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    category TEXT NOT NULL,
-    "limit" REAL NOT NULL,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE(user_id, category)
-  );
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      avatar TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
 
-  CREATE TABLE IF NOT EXISTS goals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    icon TEXT DEFAULT '🏆',
-    target REAL NOT NULL,
-    current REAL DEFAULT 0,
-    deadline TEXT,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      category TEXT NOT NULL,
+      note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS members (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    relation TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-`);
+    CREATE TABLE IF NOT EXISTS budgets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      "limit" REAL NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, category)
+    );
 
-/* ============ Migration de usuários ============ */
-ensureColumn('users', 'role', "TEXT DEFAULT 'member'");
-ensureColumn('users', 'plan_code', "TEXT DEFAULT 'free'");
-ensureColumn('users', 'referral_code', 'TEXT DEFAULT NULL');
-ensureColumn('users', 'referred_by', 'TEXT DEFAULT NULL');
-ensureColumn('users', 'country_code', "TEXT DEFAULT 'AO'");
-ensureColumn('users', 'currency', "TEXT DEFAULT 'AOA'");
-ensureColumn('users', 'language', "TEXT DEFAULT 'pt'");
-ensureColumn('users', 'date_format', "TEXT DEFAULT 'dd/mm/yyyy'");
-ensureColumn('users', 'timezone', "TEXT DEFAULT 'Africa/Luanda'");
-ensureColumn('users', 'month_start_day', 'INTEGER DEFAULT 1');
-ensureColumn('users', 'onboarded', 'INTEGER DEFAULT 0');
-ensureColumn('users', 'onboarding_step', 'INTEGER DEFAULT 0');
-ensureColumn('users', 'trial_start', 'TEXT DEFAULT NULL');
-ensureColumn('users', 'trial_end', 'TEXT DEFAULT NULL');
-ensureColumn('users', 'two_fa_enabled', 'INTEGER DEFAULT 0');
-ensureColumn('users', 'streak', 'INTEGER DEFAULT 0');
-ensureColumn('users', 'last_active_date', 'TEXT DEFAULT NULL');
-ensureColumn('users', 'family_id', 'INTEGER DEFAULT NULL');
-ensureColumn('users', 'family_role', "TEXT DEFAULT 'owner'");
-ensureColumn('users', 'is_active', 'INTEGER DEFAULT 1');
+    CREATE TABLE IF NOT EXISTS goals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      icon TEXT DEFAULT '🏆',
+      target REAL NOT NULL,
+      current REAL DEFAULT 0,
+      deadline TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      relation TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  /* ============ Migration de usuários ============ */
+  ensureColumn('users', 'role', "TEXT DEFAULT 'member'");
+  ensureColumn('users', 'plan_code', "TEXT DEFAULT 'free'");
+  ensureColumn('users', 'referral_code', 'TEXT DEFAULT NULL');
+  ensureColumn('users', 'referred_by', 'TEXT DEFAULT NULL');
+  ensureColumn('users', 'country_code', "TEXT DEFAULT 'AO'");
+  ensureColumn('users', 'currency', "TEXT DEFAULT 'AOA'");
+  ensureColumn('users', 'language', "TEXT DEFAULT 'pt'");
+  ensureColumn('users', 'date_format', "TEXT DEFAULT 'dd/mm/yyyy'");
+  ensureColumn('users', 'timezone', "TEXT DEFAULT 'Africa/Luanda'");
+  ensureColumn('users', 'month_start_day', 'INTEGER DEFAULT 1');
+  ensureColumn('users', 'onboarded', 'INTEGER DEFAULT 0');
+  ensureColumn('users', 'onboarding_step', 'INTEGER DEFAULT 0');
+  ensureColumn('users', 'trial_start', 'TEXT DEFAULT NULL');
+  ensureColumn('users', 'trial_end', 'TEXT DEFAULT NULL');
+  ensureColumn('users', 'two_fa_enabled', 'INTEGER DEFAULT 0');
+  ensureColumn('users', 'streak', 'INTEGER DEFAULT 0');
+  ensureColumn('users', 'last_active_date', 'TEXT DEFAULT NULL');
+  ensureColumn('users', 'family_id', 'INTEGER DEFAULT NULL');
+  ensureColumn('users', 'family_role', "TEXT DEFAULT 'owner'");
+  ensureColumn('users', 'is_active', 'INTEGER DEFAULT 1');
   ensureColumn('users', 'last_seen', 'TEXT DEFAULT NULL');
   ensureColumn('users', 'reset_token', 'TEXT DEFAULT NULL');
   ensureColumn('users', 'reset_expires', 'TEXT DEFAULT NULL');
 
-/* ============ Migration de transactions ============ */
-ensureColumn('transactions', 'account_id', 'INTEGER DEFAULT NULL');
-ensureColumn('transactions', 'member_id', 'INTEGER DEFAULT NULL');
-ensureColumn('transactions', 'recurring_id', 'INTEGER DEFAULT NULL');
-ensureColumn('transactions', 'currency', "TEXT DEFAULT 'AOA'");
-ensureColumn('transactions', 'is_transfer', 'INTEGER DEFAULT 0');
-ensureColumn('transactions', 'source', "TEXT DEFAULT 'manual'");
-ensureColumn('transactions', 'updated_at', 'TEXT DEFAULT NULL');
+  /* ============ Migration de transactions ============ */
+  ensureColumn('transactions', 'account_id', 'INTEGER DEFAULT NULL');
+  ensureColumn('transactions', 'member_id', 'INTEGER DEFAULT NULL');
+  ensureColumn('transactions', 'recurring_id', 'INTEGER DEFAULT NULL');
+  ensureColumn('transactions', 'currency', "TEXT DEFAULT 'AOA'");
+  ensureColumn('transactions', 'is_transfer', 'INTEGER DEFAULT 0');
+  ensureColumn('transactions', 'source', "TEXT DEFAULT 'manual'");
+  ensureColumn('transactions', 'updated_at', 'TEXT DEFAULT NULL');
 
-/* ============ Migration de budgets ============ */
-ensureColumn('budgets', 'month', "TEXT DEFAULT NULL");
-ensureColumn('budgets', 'projected', 'REAL DEFAULT 0');
-ensureColumn('budgets', 'alert_threshold', 'INTEGER DEFAULT 80');
-ensureColumn('budgets', 'updated_at', 'TEXT DEFAULT NULL');
+  /* ============ Migration de budgets ============ */
+  ensureColumn('budgets', 'month', "TEXT DEFAULT NULL");
+  ensureColumn('budgets', 'projected', 'REAL DEFAULT 0');
+  ensureColumn('budgets', 'alert_threshold', 'INTEGER DEFAULT 80');
+  ensureColumn('budgets', 'updated_at', 'TEXT DEFAULT NULL');
 
-/* ============ Migration de goals ============ */
-ensureColumn('goals', 'monthly_contribution', 'REAL DEFAULT 0');
-ensureColumn('goals', 'category', 'TEXT DEFAULT NULL');
-ensureColumn('goals', 'priority', 'INTEGER DEFAULT 1');
-ensureColumn('goals', 'updated_at', 'TEXT DEFAULT NULL');
+  /* ============ Migration de goals ============ */
+  ensureColumn('goals', 'monthly_contribution', 'REAL DEFAULT 0');
+  ensureColumn('goals', 'category', 'TEXT DEFAULT NULL');
+  ensureColumn('goals', 'priority', 'INTEGER DEFAULT 1');
+  ensureColumn('goals', 'updated_at', 'TEXT DEFAULT NULL');
 
-db.exec(`
-  /* ==================== DADOS GLOBAIS / SAAS ==================== */
-  CREATE TABLE IF NOT EXISTS countries (
-    code TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    name_en TEXT NOT NULL,
-    currency_code TEXT NOT NULL,
-    date_format TEXT NOT NULL,
-    locale TEXT NOT NULL
-  );
+  db.exec(`
+    /* ==================== DADOS GLOBAIS / SAAS ==================== */
+    CREATE TABLE IF NOT EXISTS countries (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      name_en TEXT NOT NULL,
+      currency_code TEXT NOT NULL,
+      date_format TEXT NOT NULL,
+      locale TEXT NOT NULL
+    );
 
-  CREATE TABLE IF NOT EXISTS currencies (
-    code TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    symbol TEXT NOT NULL,
-    decimals INTEGER DEFAULT 2,
-    symbol_position TEXT DEFAULT 'before',
-    iso_name TEXT DEFAULT ''
-  );
+    CREATE TABLE IF NOT EXISTS currencies (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      symbol TEXT NOT NULL,
+      decimals INTEGER DEFAULT 2,
+      symbol_position TEXT DEFAULT 'before',
+      iso_name TEXT DEFAULT ''
+    );
 
-  CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER DEFAULT NULL,
-    type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
-    name TEXT NOT NULL,
-    icon TEXT DEFAULT '',
-    color TEXT DEFAULT '#6c63ff',
-    is_default INTEGER DEFAULT 0,
-    UNIQUE(user_id, type, name)
-  );
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER DEFAULT NULL,
+      type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+      name TEXT NOT NULL,
+      icon TEXT DEFAULT '',
+      color TEXT DEFAULT '#6c63ff',
+      is_default INTEGER DEFAULT 0,
+      UNIQUE(user_id, type, name)
+    );
 
-  CREATE TABLE IF NOT EXISTS accounts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('checking', 'savings', 'cash', 'investment', 'credit')),
-    initial_balance REAL DEFAULT 0,
-    currency TEXT NOT NULL DEFAULT 'AOA',
-    institution TEXT DEFAULT '',
-    description TEXT DEFAULT '',
-    is_active INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('checking', 'savings', 'cash', 'investment', 'credit')),
+      initial_balance REAL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'AOA',
+      institution TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS transfers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    from_account INTEGER NOT NULL,
-    to_account INTEGER NOT NULL,
-    amount REAL NOT NULL,
-    date TEXT NOT NULL,
-    note TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS transfers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      from_account INTEGER NOT NULL,
+      to_account INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS recurring_transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
-    description TEXT NOT NULL,
-    amount REAL NOT NULL,
-    frequency TEXT NOT NULL CHECK(frequency IN ('monthly', 'weekly', 'yearly', 'daily')),
-    due_day INTEGER DEFAULT 1,
-    account_id INTEGER DEFAULT NULL,
-    category TEXT NOT NULL DEFAULT 'other',
-    start_date TEXT NOT NULL,
-    end_date TEXT DEFAULT NULL,
-    active INTEGER DEFAULT 1,
-    last_generated TEXT DEFAULT NULL,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS recurring_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      frequency TEXT NOT NULL CHECK(frequency IN ('monthly', 'weekly', 'yearly', 'daily')),
+      due_day INTEGER DEFAULT 1,
+      account_id INTEGER DEFAULT NULL,
+      category TEXT NOT NULL DEFAULT 'other',
+      start_date TEXT NOT NULL,
+      end_date TEXT DEFAULT NULL,
+      active INTEGER DEFAULT 1,
+      last_generated TEXT DEFAULT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS debts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    creditor TEXT NOT NULL,
-    original_amount REAL NOT NULL,
-    paid_amount REAL DEFAULT 0,
-    interest_rate REAL DEFAULT 0,
-    due_date TEXT NOT NULL,
-    installments INTEGER DEFAULT 0,
-    installment_amount REAL DEFAULT 0,
-    frequency TEXT DEFAULT 'monthly',
-    notes TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS debts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      creditor TEXT NOT NULL,
+      original_amount REAL NOT NULL,
+      paid_amount REAL DEFAULT 0,
+      interest_rate REAL DEFAULT 0,
+      due_date TEXT NOT NULL,
+      installments INTEGER DEFAULT 0,
+      installment_amount REAL DEFAULT 0,
+      frequency TEXT DEFAULT 'monthly',
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS loans (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    person TEXT NOT NULL,
-    amount REAL NOT NULL,
-    direction TEXT NOT NULL CHECK(direction IN ('lent', 'borrowed')),
-    date TEXT NOT NULL,
-    term TEXT DEFAULT 'short',
-    status TEXT DEFAULT 'pending',
-    notes TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS loans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      person TEXT NOT NULL,
+      amount REAL NOT NULL,
+      direction TEXT NOT NULL CHECK(direction IN ('lent', 'borrowed')),
+      date TEXT NOT NULL,
+      term TEXT DEFAULT 'short',
+      status TEXT DEFAULT 'pending',
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    type TEXT DEFAULT 'info',
-    title TEXT NOT NULL,
-    message TEXT DEFAULT '',
-    read INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      type TEXT DEFAULT 'info',
+      title TEXT NOT NULL,
+      message TEXT DEFAULT '',
+      read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS financial_scores (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    month TEXT NOT NULL,
-    score REAL NOT NULL,
-    factors TEXT DEFAULT '{}',
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    UNIQUE(user_id, month)
-  );
+    CREATE TABLE IF NOT EXISTS financial_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      month TEXT NOT NULL,
+      score REAL NOT NULL,
+      factors TEXT DEFAULT '{}',
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      UNIQUE(user_id, month)
+    );
 
-  CREATE TABLE IF NOT EXISTS families (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    owner_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now', 'localtime'))
-  );
+    CREATE TABLE IF NOT EXISTS families (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
 
-  CREATE TABLE IF NOT EXISTS family_members (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    family_id INTEGER NOT NULL,
-    user_id INTEGER DEFAULT NULL,
-    email TEXT DEFAULT NULL,
-    role TEXT DEFAULT 'member',
-    status TEXT DEFAULT 'pending',
-    created_at TEXT DEFAULT (datetime('now', 'localtime'))
-  );
+    CREATE TABLE IF NOT EXISTS family_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      family_id INTEGER NOT NULL,
+      user_id INTEGER DEFAULT NULL,
+      email TEXT DEFAULT NULL,
+      role TEXT DEFAULT 'member',
+      status TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
 
-  CREATE TABLE IF NOT EXISTS subscription_plans (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    code TEXT NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    price_monthly REAL DEFAULT 0,
-    price_annual REAL DEFAULT 0,
-    period TEXT DEFAULT 'month',
-    trial_days INTEGER DEFAULT 0,
-    features TEXT DEFAULT '{}',
-    is_active INTEGER DEFAULT 1,
-    sort INTEGER DEFAULT 0
-  );
+    CREATE TABLE IF NOT EXISTS subscription_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      price_monthly REAL DEFAULT 0,
+      price_annual REAL DEFAULT 0,
+      period TEXT DEFAULT 'month',
+      trial_days INTEGER DEFAULT 0,
+      features TEXT DEFAULT '{}',
+      is_active INTEGER DEFAULT 1,
+      sort INTEGER DEFAULT 0
+    );
 
-  CREATE TABLE IF NOT EXISTS subscriptions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    plan_code TEXT NOT NULL,
-    status TEXT DEFAULT 'trial',
-    trial_start TEXT DEFAULT NULL,
-    trial_end TEXT DEFAULT NULL,
-    current_period_start TEXT DEFAULT NULL,
-    current_period_end TEXT DEFAULT NULL,
-    next_billing_date TEXT DEFAULT NULL,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      plan_code TEXT NOT NULL,
+      status TEXT DEFAULT 'trial',
+      trial_start TEXT DEFAULT NULL,
+      trial_end TEXT DEFAULT NULL,
+      current_period_start TEXT DEFAULT NULL,
+      current_period_end TEXT DEFAULT NULL,
+      next_billing_date TEXT DEFAULT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS referrals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    code TEXT NOT NULL UNIQUE,
-    created_at TEXT DEFAULT (datetime('now', 'localtime'))
-  );
+    CREATE TABLE IF NOT EXISTS referrals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      code TEXT NOT NULL UNIQUE,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
 
-  CREATE TABLE IF NOT EXISTS referral_rewards (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    referrer_id INTEGER NOT NULL,
-    referred_email TEXT DEFAULT '',
-    referred_name TEXT DEFAULT '',
-    status TEXT DEFAULT 'pending',
-    reward_days INTEGER DEFAULT 30,
-    created_at TEXT DEFAULT (datetime('now', 'localtime'))
-  );
+    CREATE TABLE IF NOT EXISTS referral_rewards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      referrer_id INTEGER NOT NULL,
+      referred_email TEXT DEFAULT '',
+      referred_name TEXT DEFAULT '',
+      status TEXT DEFAULT 'pending',
+      reward_days INTEGER DEFAULT 30,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
 
-  CREATE TABLE IF NOT EXISTS challenges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    code TEXT NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    target REAL NOT NULL,
-    metric TEXT NOT NULL,
-    reward INTEGER DEFAULT 100,
-    reward_type TEXT DEFAULT 'points',
-    icon TEXT DEFAULT '🏆',
-    is_active INTEGER DEFAULT 1,
-    sort INTEGER DEFAULT 0
-  );
+    CREATE TABLE IF NOT EXISTS challenges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      target REAL NOT NULL,
+      metric TEXT NOT NULL,
+      reward INTEGER DEFAULT 100,
+      reward_type TEXT DEFAULT 'points',
+      icon TEXT DEFAULT '🏆',
+      is_active INTEGER DEFAULT 1,
+      sort INTEGER DEFAULT 0
+    );
 
-  CREATE TABLE IF NOT EXISTS user_challenges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    challenge_id INTEGER NOT NULL,
-    progress REAL DEFAULT 0,
-    completed INTEGER DEFAULT 0,
-    completed_at TEXT DEFAULT NULL,
-    UNIQUE(user_id, challenge_id)
-  );
+    CREATE TABLE IF NOT EXISTS user_challenges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      challenge_id INTEGER NOT NULL,
+      progress REAL DEFAULT 0,
+      completed INTEGER DEFAULT 0,
+      completed_at TEXT DEFAULT NULL,
+      UNIQUE(user_id, challenge_id)
+    );
 
-  CREATE TABLE IF NOT EXISTS achievements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    code TEXT NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    icon TEXT DEFAULT '⭐',
-    is_active INTEGER DEFAULT 1
-  );
+    CREATE TABLE IF NOT EXISTS achievements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      icon TEXT DEFAULT '⭐',
+      is_active INTEGER DEFAULT 1
+    );
 
-  CREATE TABLE IF NOT EXISTS user_achievements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    achievement_id INTEGER NOT NULL,
-    unlocked_at TEXT DEFAULT (datetime('now', 'localtime')),
-    UNIQUE(user_id, achievement_id)
-  );
+    CREATE TABLE IF NOT EXISTS user_achievements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      achievement_id INTEGER NOT NULL,
+      unlocked_at TEXT DEFAULT (datetime('now', 'localtime')),
+      UNIQUE(user_id, achievement_id)
+    );
 
-  CREATE TABLE IF NOT EXISTS exchange_rates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    base_currency TEXT NOT NULL,
-    target_currency TEXT NOT NULL,
-    rate REAL NOT NULL,
-    source TEXT DEFAULT 'static',
-    updated_at TEXT DEFAULT (datetime('now', 'localtime')),
-    UNIQUE(base_currency, target_currency)
-  );
+    CREATE TABLE IF NOT EXISTS exchange_rates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      base_currency TEXT NOT NULL,
+      target_currency TEXT NOT NULL,
+      rate REAL NOT NULL,
+      source TEXT DEFAULT 'static',
+      updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+      UNIQUE(base_currency, target_currency)
+    );
 
-  CREATE TABLE IF NOT EXISTS ai_conversations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    question TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
+    CREATE TABLE IF NOT EXISTS ai_conversations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      question TEXT NOT NULL,
+      answer TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-  CREATE TABLE IF NOT EXISTS imported_files (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    file_name TEXT NOT NULL,
-    rows_imported INTEGER DEFAULT 0,
-    total_rows INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now', 'localtime'))
-  );
+    CREATE TABLE IF NOT EXISTS imported_files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      file_name TEXT NOT NULL,
+      rows_imported INTEGER DEFAULT 0,
+      total_rows INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
 
-  CREATE TABLE IF NOT EXISTS user_sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    sid TEXT NOT NULL,
-    ua TEXT DEFAULT '',
-    ip TEXT DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    last_seen TEXT DEFAULT (datetime('now', 'localtime')),
-    current INTEGER DEFAULT 0
-  );
+    CREATE TABLE IF NOT EXISTS user_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      sid TEXT NOT NULL,
+      ua TEXT DEFAULT '',
+      ip TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      last_seen TEXT DEFAULT (datetime('now', 'localtime')),
+      current INTEGER DEFAULT 0
+    );
 
-  CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
-  CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
-  CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(account_id);
-  CREATE INDEX IF NOT EXISTS idx_budgets_user ON budgets(user_id);
-  CREATE INDEX IF NOT EXISTS idx_goals_user ON goals(user_id);
-  CREATE INDEX IF NOT EXISTS idx_members_user ON members(user_id);
-  CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
-  CREATE INDEX IF NOT EXISTS idx_recurring_user ON recurring_transactions(user_id);
-  CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
-  CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(user_id, read);
-  CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
-`);
+    CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+    CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(account_id);
+    CREATE INDEX IF NOT EXISTS idx_budgets_user ON budgets(user_id);
+    CREATE INDEX IF NOT EXISTS idx_goals_user ON goals(user_id);
+    CREATE INDEX IF NOT EXISTS idx_members_user ON members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_recurring_user ON recurring_transactions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(user_id, read);
+    CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
+  `);
+}
 
-/* ==================== SEED ==================== */
+/* ==================== SEED (ambos os backends) ==================== */
 const seedCountries = db.prepare('INSERT OR IGNORE INTO countries (code, name, name_en, currency_code, date_format, locale) VALUES (?,?,?,?,?,?)');
 [
   ['AO', 'Angola', 'Angola', 'AOA', 'dd/mm/yyyy', 'pt-AO'],
@@ -521,7 +535,7 @@ const seedCategories = db.prepare('INSERT OR IGNORE INTO categories (user_id, ty
   ['income', 'Negócio', '🏢', '#38bdf8'],
   ['income', 'Freelance', '💻', '#8b5cf6'],
   ['income', 'Investimentos', '📈', '#10b981'],
-['income', 'Presentes', '🎁', '#ec4899'],
+  ['income', 'Presentes', '🎁', '#ec4899'],
   ['income', 'Outros', '🏷️', '#94a3b8']
 ].forEach(r => seedCategories.run(...r));
 db.prepare(`DELETE FROM categories WHERE user_id IS NULL AND id NOT IN (SELECT MIN(id) FROM categories WHERE user_id IS NULL GROUP BY type, name)`).run();
